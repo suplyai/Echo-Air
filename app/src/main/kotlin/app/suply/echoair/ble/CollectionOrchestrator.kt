@@ -135,11 +135,16 @@ class CollectionOrchestrator @Inject constructor(
             }
             try {
                 updateDevice(deviceId) { it.copy(state = DeviceState.SYNCING, progress = 0f) }
-                val readings = connection.downloadLog(beacon.mac) { progress ->
+                val result = connection.downloadLog(beacon.mac) { progress ->
                     val frac = if (progress.total == 0) 0f else progress.current / progress.total.toFloat()
                     updateDevice(deviceId) { it.copy(progress = frac) }
                 }
-                val resp = repo.submitRecords(deviceId, readings)
+                val readings = result.records
+                val resp = repo.submitRecords(
+                    deviceId = deviceId,
+                    records = readings,
+                    deviceClockOffsetSeconds = result.deviceClockOffsetSeconds
+                )
                 val tempMin = readings.minOfOrNull { it.temperature }
                 val tempMax = readings.maxOfOrNull { it.temperature }
                 updateDevice(deviceId) {

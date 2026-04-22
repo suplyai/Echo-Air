@@ -110,8 +110,12 @@ class AmbientScanService : LifecycleService() {
     private suspend fun attemptDownload(beacon: KBeacon) {
         if (!inFlight.add(beacon.serial)) return
         try {
-            val readings = connection.downloadLog(beacon.mac)
-            repo.submitRecords(beacon.serial, readings)
+            val result = connection.downloadLog(beacon.mac)
+            repo.submitRecords(
+                deviceId = beacon.serial,
+                records = result.records,
+                deviceClockOffsetSeconds = result.deviceClockOffsetSeconds
+            )
         } catch (t: Throwable) {
             Timber.w(t, "ambient download failed for ${beacon.serial}")
         } finally {

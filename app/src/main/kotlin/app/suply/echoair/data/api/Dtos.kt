@@ -92,7 +92,14 @@ data class DeviceLookupResponse(
 @Serializable
 data class EchoScanRequest(
     @SerialName("device_id") val deviceId: String,
-    @SerialName("temperature_records") val temperatureRecords: List<ReadingDto>
+    @SerialName("temperature_records") val temperatureRecords: List<ReadingDto>,
+    /**
+     * Phone UTC minus device UTC at the start of readout, seconds. Sent
+     * unmodified to the backend — timestamps on [temperatureRecords] are
+     * the raw values from the device clock, and the backend's fusion
+     * layer applies the correction against waybill + Hubble scans.
+     */
+    @SerialName("device_clock_offset_seconds") val deviceClockOffsetSeconds: Long? = null
 )
 
 @Serializable

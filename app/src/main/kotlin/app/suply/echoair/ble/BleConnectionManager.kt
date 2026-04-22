@@ -2,11 +2,12 @@ package app.suply.echoair.ble
 
 import android.content.Context
 import app.suply.echoair.data.api.ReadingDto
-import com.kkmcn.kbeaconlib2.KBCfgPackage.KBCfgSensor
 import com.kkmcn.kbeaconlib2.KBConnPara
 import com.kkmcn.kbeaconlib2.KBConnState
 import com.kkmcn.kbeaconlib2.KBException
-import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBSensorReadUserCallback
+import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBRecordHumidity
+import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBSensorReadOption
+import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBSensorType
 import com.kkmcn.kbeaconlib2.KBeacon
 import com.kkmcn.kbeaconlib2.KBeaconsMgr
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -22,32 +23,49 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * Handles GATT connection + log download for a single device using kbeaconlib2.
+ * GATT connection + log download for a single device using kbeaconlib2.
  *
- * Android has a platform-level cap (typically 4–7) on concurrent GATT
- * connections. We enforce 4 here and queue the rest. Mid-download
- * disconnections are retried up to 3 times.
+ * Throughput reality check: KKM's 7,000 rec / 15s number is for their
+ * dedicated KGateway hardware. Consumer Android phones see 5–15 minutes
+ * for a full 60,000-record log; Samsung tends to be fastest, Xiaomi and
+ * Huawei slowest. Android's platform GATT cap is typically 4–7, so we
+ * limit ourselves to 4 concurrent slots and read the rest sequentially.
+ * kbeaconlib2 negotiates a larger MTU at connection setup internally
+ * during [KBConnPara.readCommPara].
+ *
+ * Retrieval uses the two-step pattern from KKM's KBeaconProDemo_Android
+ * §4.3.6: first readSensorDataInfo to get the total + device UTC clock,
+ * then readSensorRecord in NormalOrder batches paged via the
+ * readDataNextPos cursor. NormalOrder is critical — Echo Air devices are
+ * single-use, so we always want the full history and never want to
+ * advance the on-device "unread" pointer (which is what NewRecord does).
  */
 @Singleton
 class BleConnectionManager @Inject constructor(
     @ApplicationContext private val context: Context
 ) {
 
-    private val slots = Semaphore(MAX_CONCURRENT)
-    private val mgr: KBeaconsMgr? = KBeaconsMgr.sharedBeaconManager(context)
-
     data class DownloadProgress(val current: Int, val total: Int)
 
     /**
-     * Connects to [mac], downloads the full temperature/humidity log, and
-     * returns it as a list of [ReadingDto]. The optional [onProgress] callback
-     * fires on each chunk so the UI can render a progress bar.
+     * Records pulled from the device plus the clock offset captured at the
+     * start of readout. The backend uses the offset to correct timestamps
+     * against independent evidence (waybill milestones, Hubble scans);
+     * the app never mutates timestamps client-side.
      */
+    data class LogReadResult(
+        val records: List<ReadingDto>,
+        val deviceClockOffsetSeconds: Long
+    )
+
+    private val slots = Semaphore(MAX_CONCURRENT)
+    private val mgr: KBeaconsMgr? = KBeaconsMgr.sharedBeaconManager(context)
+
     suspend fun downloadLog(
         mac: String,
         password: String = KBeaconIds.DEFAULT_PASSWORD,
         onProgress: ((DownloadProgress) -> Unit)? = null
-    ): List<ReadingDto> = slots.withPermit {
+    ): LogReadResult = slots.withPermit {
         var attempt = 0
         var lastError: Throwable? = null
         while (attempt < MAX_ATTEMPTS) {
@@ -67,26 +85,56 @@ class BleConnectionManager @Inject constructor(
         mac: String,
         password: String,
         onProgress: ((DownloadProgress) -> Unit)?
-    ): List<ReadingDto> = withContext(Dispatchers.IO) {
+    ): LogReadResult = withContext(Dispatchers.IO) {
         val beacon = beaconFor(mac) ?: error("unknown beacon $mac")
         connect(beacon, password)
         try {
-            readHistory(beacon, onProgress)
+            val sensorType = pickSensorType(beacon)
+
+            // Step 1: query totals + device clock
+            val info = readSensorDataInfo(beacon, sensorType)
+            val phoneUtcSeconds = System.currentTimeMillis() / 1000
+            val clockOffset = phoneUtcSeconds - info.readInfoUtcSeconds
+            val total = info.totalRecordNumber
+            Timber.d(
+                "Device %s: total=%d unread=%d deviceUtc=%d phoneUtc=%d offset=%ds",
+                mac, total, info.unreadRecordNumber, info.readInfoUtcSeconds, phoneUtcSeconds, clockOffset
+            )
+            onProgress?.invoke(DownloadProgress(0, total))
+
+            // Step 2: paged reads in NormalOrder, starting from INVALID_DATA_RECORD_POS
+            val collected = ArrayList<ReadingDto>(total.coerceAtLeast(0))
+            var nextPos = INVALID_DATA_RECORD_POS
+            while (collected.size < total) {
+                val batch = readSensorBatch(beacon, sensorType, nextPos, BATCH_SIZE)
+                if (batch.records.isEmpty()) break   // defensive: device said done
+                collected.addAll(batch.records)
+                nextPos = batch.nextPos
+                onProgress?.invoke(DownloadProgress(collected.size, total))
+                if (batch.done || nextPos == INVALID_DATA_RECORD_POS) break
+            }
+            LogReadResult(records = collected, deviceClockOffsetSeconds = clockOffset)
         } finally {
             disconnectQuietly(mac)
         }
     }
 
+    private fun pickSensorType(beacon: KBeacon): Int {
+        val common = beacon.commonCfg
+        val supportsHumidity = common?.isSupportHumiditySensor == true
+        return if (supportsHumidity) KBSensorType.HTHumidity else KBSensorType.Temperature
+    }
+
     private suspend fun connect(beacon: KBeacon, password: String) =
         suspendCancellableCoroutine { cont ->
             val para = KBConnPara().apply {
-                this.syncUtcTime = true
-                this.readCommPara = true
-                this.readSensorPara = true
-                this.readTriggerPara = false
-                this.readSlotPara = false
+                syncUtcTime = false       // don't overwrite the device clock — we *want* the drift
+                readCommPara = true        // triggers MTU negotiation + common-cfg read
+                readSensorPara = true
+                readTriggerPara = false
+                readSlotPara = false
             }
-            beacon.connect(password, CONNECT_TIMEOUT_MS, para) { state, _, ex ->
+            beacon.connect(password, CONNECT_TIMEOUT_MS, para) { _, state, ex ->
                 when (state) {
                     KBConnState.Connected -> if (!cont.isCompleted) cont.resume(Unit)
                     KBConnState.Disconnected -> if (!cont.isCompleted) {
@@ -97,57 +145,65 @@ class BleConnectionManager @Inject constructor(
             }
         }
 
-    private suspend fun readHistory(
-        beacon: KBeacon,
-        onProgress: ((DownloadProgress) -> Unit)?
-    ): List<ReadingDto> = suspendCancellableCoroutine { cont ->
-        val reader = beacon.sensorHistoryData ?: run {
-            cont.resumeWithException(IllegalStateException("history service unavailable"))
-            return@suspendCancellableCoroutine
-        }
-
-        val collected = mutableListOf<ReadingDto>()
-        val callback = object : KBSensorReadUserCallback {
-            override fun onReadComplete(totalRecord: Int) {
-                Timber.d("Log read complete: $totalRecord records")
-                cont.resume(collected.toList())
-            }
-
-            override fun onReadProgress(
-                totalRecord: Int,
-                readRecord: Int,
-                records: Array<out com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBRecordBase>?
-            ) {
-                records?.forEach { record ->
-                    val temp = record.getField(KBCfgSensor.KBSensorTypeTemperature)
-                    val humidity = record.getField(KBCfgSensor.KBSensorTypeHumidity)
-                    val ts = record.utcTime
-                    if (temp != null && ts > 0) {
-                        collected.add(
-                            ReadingDto(
-                                temperature = temp.toDouble(),
-                                humidity = humidity?.toDouble(),
-                                timestamp = ts
-                            )
+    private suspend fun readSensorDataInfo(beacon: KBeacon, sensorType: Int): SensorInfo =
+        suspendCancellableCoroutine { cont ->
+            val reader = beacon.sensorHistoryData
+                ?: return@suspendCancellableCoroutine cont.resumeWithException(
+                    IllegalStateException("history service unavailable")
+                )
+            reader.readSensorDataInfo(sensorType) { success, ex, dataInfo ->
+                if (success && dataInfo != null) {
+                    cont.resume(
+                        SensorInfo(
+                            totalRecordNumber = dataInfo.totalRecordNumber,
+                            unreadRecordNumber = dataInfo.unreadRecordNumber,
+                            readInfoUtcSeconds = dataInfo.readInfoUtcSeconds
                         )
-                    }
+                    )
+                } else {
+                    cont.resumeWithException(ex ?: IllegalStateException("readSensorDataInfo failed"))
                 }
-                onProgress?.invoke(DownloadProgress(readRecord, totalRecord))
-            }
-
-            override fun onReadFailed(error: KBException?) {
-                cont.resumeWithException(error ?: IllegalStateException("read failed"))
             }
         }
 
-        try {
-            reader.readSensorRecord(
-                KBCfgSensor.KBSensorTypeTemperature or KBCfgSensor.KBSensorTypeHumidity,
-                SensorHistoryReadOptions.READ_ALL,
-                callback
+    private suspend fun readSensorBatch(
+        beacon: KBeacon,
+        sensorType: Int,
+        startPos: Int,
+        maxRecords: Int
+    ): Batch = suspendCancellableCoroutine { cont ->
+        val reader = beacon.sensorHistoryData
+            ?: return@suspendCancellableCoroutine cont.resumeWithException(
+                IllegalStateException("history service unavailable")
             )
-        } catch (t: Throwable) {
-            cont.resumeWithException(t)
+        reader.readSensorRecord(
+            sensorType,
+            startPos,
+            KBSensorReadOption.NormalOrder,
+            maxRecords
+        ) { success, ex, rsp ->
+            if (!success || rsp == null) {
+                cont.resumeWithException(ex ?: IllegalStateException("readSensorRecord failed"))
+                return@readSensorRecord
+            }
+            val records = rsp.readDataRsp?.mapNotNull { raw ->
+                val r = raw as? KBRecordHumidity ?: return@mapNotNull null
+                val ts = r.utcTime
+                val temp = r.temperature
+                if (ts <= 0) null
+                else ReadingDto(
+                    temperature = temp.toDouble(),
+                    humidity = r.humidity?.toDouble(),
+                    timestamp = ts
+                )
+            } ?: emptyList()
+            cont.resume(
+                Batch(
+                    records = records,
+                    nextPos = rsp.readDataNextPos,
+                    done = rsp.readDataNextPos == INVALID_DATA_RECORD_POS
+                )
+            )
         }
     }
 
@@ -161,14 +217,23 @@ class BleConnectionManager @Inject constructor(
         runCatching { beaconFor(mac)?.disconnect() }
     }
 
+    private data class SensorInfo(
+        val totalRecordNumber: Int,
+        val unreadRecordNumber: Int,
+        val readInfoUtcSeconds: Long
+    )
+
+    private data class Batch(
+        val records: List<ReadingDto>,
+        val nextPos: Int,
+        val done: Boolean
+    )
+
     private companion object {
-        const val MAX_CONCURRENT = 4
+        const val MAX_CONCURRENT = 4           // platform cap is typically 4–7
         const val MAX_ATTEMPTS = 3
         const val CONNECT_TIMEOUT_MS = 20_000
+        const val BATCH_SIZE = 200             // tune 100–500 based on stability
+        const val INVALID_DATA_RECORD_POS = -1
     }
-}
-
-private object SensorHistoryReadOptions {
-    /** Read from newest to oldest, all records. */
-    const val READ_ALL: Int = 0
 }

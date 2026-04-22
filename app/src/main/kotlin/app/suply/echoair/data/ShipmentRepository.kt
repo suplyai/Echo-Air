@@ -85,10 +85,15 @@ class ShipmentRepository @Inject constructor(
     /**
      * Persists records locally and attempts to submit them. Returns the server
      * response on success, or null if we're offline (the records are queued).
+     *
+     * [deviceClockOffsetSeconds] is phone UTC minus device UTC at the start
+     * of readout, captured from readSensorDataInfo.readInfoUtcSeconds. It is
+     * forwarded as-is; timestamps on [records] are the raw device values.
      */
     suspend fun submitRecords(
         deviceId: String,
-        records: List<ReadingDto>
+        records: List<ReadingDto>,
+        deviceClockOffsetSeconds: Long? = null
     ): EchoScanResponse? {
         val rows = records.map {
             TemperatureRecord(
@@ -100,7 +105,11 @@ class ShipmentRepository @Inject constructor(
         }
         recordDao.insertAll(rows)
 
-        val request = EchoScanRequest(deviceId = deviceId, temperatureRecords = records)
+        val request = EchoScanRequest(
+            deviceId = deviceId,
+            temperatureRecords = records,
+            deviceClockOffsetSeconds = deviceClockOffsetSeconds
+        )
         return try {
             val resp = api.echoScan(request)
             recordDao.markUploaded(deviceId)
