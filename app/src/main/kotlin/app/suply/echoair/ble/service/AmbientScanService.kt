@@ -66,10 +66,17 @@ class AmbientScanService : LifecycleService() {
     }
 
     private suspend fun dutyCycle() {
-        // Warm the roster once on start
-        runCatching { repo.refreshActiveRoster() }
+        // Warm the roster once on start, then re-fetch on every duty cycle
+        // if the last refresh was more than ROSTER_REFRESH_MS ago. Without
+        // this, shipments created on the web platform after the service
+        // started would never enter the scan filter until the service
+        // restarts.
+        var lastRosterRefresh = 0L
+        refreshRosterIfStale(lastRosterRefresh)?.let { lastRosterRefresh = it }
 
         while (currentCoroutineContext().isActive) {
+            refreshRosterIfStale(lastRosterRefresh)?.let { lastRosterRefresh = it }
+
             val expectedMacs = repo.activeRosterMacs().map { it.uppercase() }.toSet()
             val expectedSerials = repo.activeRosterDeviceIds().toSet()
 
@@ -87,12 +94,17 @@ class AmbientScanService : LifecycleService() {
             while (System.currentTimeMillis() < scanEnd && currentCoroutineContext().isActive) delay(500)
             job.cancel()
 
-            // Refresh the roster every few cycles
-            if (System.currentTimeMillis() % ROSTER_REFRESH_MS < DUTY_INTERVAL_MS) {
-                runCatching { repo.refreshActiveRoster() }
-            }
-
             delay(DUTY_INTERVAL_MS)
+        }
+    }
+
+    /** Refreshes the roster if the last refresh is older than [ROSTER_REFRESH_MS]. Returns the new timestamp, or null if no refresh happened. */
+    private suspend fun refreshRosterIfStale(lastRefreshAt: Long): Long? {
+        val now = System.currentTimeMillis()
+        if (now - lastRefreshAt < ROSTER_REFRESH_MS) return null
+        return runCatching { repo.refreshActiveRoster(); now }.getOrElse {
+            Timber.w(it, "ambient roster refresh failed")
+            null  // keep retrying next cycle
         }
     }
 

@@ -86,6 +86,18 @@ fun SettingsScreen(
                 modifier = Modifier.fillMaxWidth()
             ) { Text(stringResource(R.string.settings_battery_optimisation)) }
 
+            if (app.suply.echoair.BuildConfig.DEBUG) {
+                OutlinedButton(
+                    onClick = {
+                        val intent = Intent().apply {
+                            setClassName(context, "app.suply.echoair.spike.SpikeActivity")
+                        }
+                        runCatching { context.startActivity(intent) }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Run kbeaconlib2 spike (debug)") }
+            }
+
             TextButton(
                 onClick = {
                     vm.logout()

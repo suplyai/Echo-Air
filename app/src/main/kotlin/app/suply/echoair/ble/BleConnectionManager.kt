@@ -12,6 +12,7 @@ import com.kkmcn.kbeaconlib2.KBeacon
 import com.kkmcn.kbeaconlib2.KBeaconsMgr
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -86,7 +87,7 @@ class BleConnectionManager @Inject constructor(
         password: String,
         onProgress: ((DownloadProgress) -> Unit)?
     ): LogReadResult = withContext(Dispatchers.IO) {
-        val beacon = beaconFor(mac) ?: error("unknown beacon $mac")
+        val beacon = resolveBeacon(mac) ?: error("unknown beacon $mac")
         connect(beacon, password)
         try {
             val sensorType = pickSensorType(beacon)
@@ -213,6 +214,28 @@ class BleConnectionManager @Inject constructor(
         return mgr?.getBeacon(formatted)
     }
 
+    /**
+     * KBeaconsMgr.getBeacon only returns beacons the library's own scanner
+     * has seen. Our main-path scanner uses the native BluetoothLeScanner for
+     * low overhead, so the manager cache is typically cold on first call —
+     * we prime it with a short KBeaconsMgr.startScanning window here.
+     */
+    private suspend fun resolveBeacon(mac: String): KBeacon? {
+        beaconFor(mac)?.let { return it }
+        val m = mgr ?: return null
+        runCatching { m.startScanning() }
+        try {
+            val deadline = System.currentTimeMillis() + WARMUP_MS
+            while (System.currentTimeMillis() < deadline) {
+                beaconFor(mac)?.let { return it }
+                delay(250)
+            }
+        } finally {
+            runCatching { m.stopScanning() }
+        }
+        return beaconFor(mac)
+    }
+
     private fun disconnectQuietly(mac: String) {
         runCatching { beaconFor(mac)?.disconnect() }
     }
@@ -233,6 +256,7 @@ class BleConnectionManager @Inject constructor(
         const val MAX_CONCURRENT = 4           // platform cap is typically 4–7
         const val MAX_ATTEMPTS = 3
         const val CONNECT_TIMEOUT_MS = 20_000
+        const val WARMUP_MS = 8_000L           // short KBeaconsMgr scan to prime getBeacon cache
         const val BATCH_SIZE = 200             // tune 100–500 based on stability
         const val INVALID_DATA_RECORD_POS = -1
     }
