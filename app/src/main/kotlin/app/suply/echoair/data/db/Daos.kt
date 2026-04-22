@@ -63,7 +63,7 @@ interface RecordDao {
     @Query("SELECT COUNT(*) FROM temperature_records WHERE deviceId = :id")
     suspend fun countFor(id: String): Int
 
-    @Query("SELECT MIN(temperature), MAX(temperature) FROM temperature_records WHERE deviceId = :id")
+    @Query("SELECT MIN(temperature) AS min, MAX(temperature) AS max FROM temperature_records WHERE deviceId = :id")
     suspend fun tempRange(id: String): TempRange?
 
     @Query("UPDATE temperature_records SET uploaded = 1 WHERE deviceId = :id")

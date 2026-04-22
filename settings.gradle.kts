@@ -23,3 +23,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "EchoAir"
 include(":app")
+include(":kbeaconlib2")
+project(":kbeaconlib2").projectDir = file("libs/kbeaconlib2")

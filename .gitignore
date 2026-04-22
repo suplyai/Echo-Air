@@ -16,3 +16,7 @@ local.properties
 keystore.properties
 google-services.json
 .kotlin
+local.properties
+/libs/kbeaconlib2/build/
+/libs/kbeaconlib2/.gradle/
+app/build/outputs/apk/debug/app-debug.apk

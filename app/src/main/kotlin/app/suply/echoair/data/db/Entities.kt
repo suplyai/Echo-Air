@@ -3,8 +3,6 @@ package app.suply.echoair.data.db
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
-import androidx.room.TypeConverter
-import kotlinx.serialization.json.Json
 
 @Entity(tableName = "shipments")
 data class CachedShipment(
@@ -59,11 +57,3 @@ data class PendingUpload(
     val createdAt: Long
 )
 
-class Converters {
-    @TypeConverter fun stringListToJson(list: List<String>?): String =
-        Json.encodeToString(kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer()), list ?: emptyList())
-
-    @TypeConverter fun jsonToStringList(json: String?): List<String> =
-        if (json.isNullOrBlank()) emptyList()
-        else Json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(kotlinx.serialization.builtins.serializer()), json)
-}

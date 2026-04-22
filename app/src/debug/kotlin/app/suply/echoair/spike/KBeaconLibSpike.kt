@@ -1,11 +1,12 @@
 package app.suply.echoair.spike
 
 import android.content.Context
+import com.kkmcn.kbeaconlib2.KBCfgPackage.KBSensorType
 import com.kkmcn.kbeaconlib2.KBConnPara
 import com.kkmcn.kbeaconlib2.KBConnState
+import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBRecordDataRsp
 import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBRecordHumidity
 import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBSensorReadOption
-import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBSensorType
 import com.kkmcn.kbeaconlib2.KBeaconsMgr
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -13,31 +14,27 @@ import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 
 /**
- * Debug-only spike to de-risk the kbeaconlib2 symbols this week against a
- * real KKM S23H. The shipped BleConnectionManager uses the exact same flow;
- * if any symbol here doesn't resolve or behaves differently, the same change
- * needs to land in BleConnectionManager.
+ * Debug-only spike to de-risk the kbeaconlib2 symbols against a real KKM S23H.
+ * The shipped BleConnectionManager uses the exact same flow; if any symbol
+ * here doesn't resolve or behaves differently, the same change needs to land
+ * in BleConnectionManager.
  *
  * Symbols this spike exercises (verify against KKM KBeaconProDemo_Android §4.3.6):
- *   - KBSensorType.HTHumidity
- *   - mBeacon.commonCfg.isSupportHumiditySensor
- *   - mBeacon.readSensorDataInfo(sensorType, callback)
- *       return: totalRecordNumber, unreadRecordNumber, readInfoUtcSeconds
- *   - mBeacon.readSensorRecord(sensorType, startPos, KBSensorReadOption.NormalOrder,
- *                              maxRecordNum, callback)
- *       return: readDataRsp (List<KBRecordHumidity>), readDataNextPos
- *   - KBRecordHumidity.utcTime, .temperature, .humidity
- *
- * Usage: SpikeActivity takes a MAC in the format "BC:57:29:1C:D6:A6" and the
- * device password (default "0000000000000000"), runs this routine, and dumps
- * every verified field to the on-screen log plus Logcat tag "EchoAirSpike".
+ *   - KBSensorType.HTHumidity                  (package KBCfgPackage)
+ *   - beacon.commonCfg.isSupportHumiditySensor
+ *   - beacon.readSensorDataInfo(sensorType, callback)
+ *       returns KBRecordInfoRsp { sensorType, totalRecordNumber,
+ *                                 unreadRecordNumber, readInfoUtcSeconds }
+ *   - beacon.readSensorRecord(sensorType, startPos:Long,
+ *                             KBSensorReadOption.NormalOrder, maxRecords,
+ *                             callback)
+ *       returns KBRecordDataRsp { readDataRspList, readDataNextPos, sensorType }
+ *   - KBRecordHumidity { utcTime:long, temperature:float, humidity:float }
+ *   - KBRecordDataRsp.INVALID_DATA_RECORD_POS == 4294967295L
  */
 object KBeaconLibSpike {
 
-    data class Report(
-        val log: List<String>,
-        val succeeded: Boolean
-    )
+    data class Report(val log: List<String>, val succeeded: Boolean)
 
     suspend fun run(context: Context, mac: String, password: String, batchSize: Int = 10): Report {
         val entries = mutableListOf<String>()
@@ -53,9 +50,7 @@ object KBeaconLibSpike {
         val formatted = if (mac.contains(":")) mac.uppercase()
                         else mac.uppercase().chunked(2).joinToString(":")
 
-        // Prime the manager's cache by running a short KBeaconsMgr scan
-        // so getBeacon(mac) resolves. KBeaconsMgr.getBeacon only returns
-        // beacons the library's own scanner has already seen.
+        // Prime the manager's cache — getBeacon only returns from KBeaconsMgr's own scanner.
         log("WARMUP: KBeaconsMgr.startScanning() for up to 8s waiting for $formatted ...")
         runCatching { mgr.startScanning() }
         var beacon = mgr.getBeacon(formatted)
@@ -83,69 +78,67 @@ object KBeaconLibSpike {
                 readSlotPara = false
             }
             suspendCancellableCoroutine<Unit> { cont ->
-                beacon.connect(password, 20_000, para) { _, state, ex ->
+                beacon!!.connectEnhanced(password, 20_000, para) { _, state, nReason ->
                     when (state) {
                         KBConnState.Connected -> if (!cont.isCompleted) cont.resume(Unit)
                         KBConnState.Disconnected -> if (!cont.isCompleted)
-                            cont.resumeWithException(ex ?: RuntimeException("disconnected"))
+                            cont.resumeWithException(RuntimeException("disconnected (reason=$nReason)"))
                         else -> Unit
                     }
                 }
             }
-            log("Connected. DeviceInfo model=${beacon.model} hwRev=${beacon.hardwareVersion} fwRev=${beacon.firmwareVersion}")
 
-            // --- commonCfg.isSupportHumiditySensor ---
-            val common = beacon.commonCfg
+            val common = beacon!!.commonCfg
+            log("Connected. commonCfg model=${common?.model} hwRev=${common?.hardwareVersion}")
+
             val supportsHumidity = common?.isSupportHumiditySensor == true
             log("commonCfg.isSupportHumiditySensor = $supportsHumidity")
+            log("KBSensorType.HTHumidity = ${KBSensorType.HTHumidity}")
 
-            val sensorType = if (supportsHumidity) KBSensorType.HTHumidity else KBSensorType.Temperature
-            log("KBSensorType selected = $sensorType (HTHumidity=${KBSensorType.HTHumidity}, Temperature=${KBSensorType.Temperature})")
+            val sensorType = KBSensorType.HTHumidity
 
             // --- readSensorDataInfo ---
             log("readSensorDataInfo($sensorType) ...")
             val info = suspendCancellableCoroutine { cont ->
-                beacon.sensorHistoryData!!.readSensorDataInfo(sensorType) { success, ex, dataInfo ->
-                    if (success && dataInfo != null) cont.resume(dataInfo)
-                    else cont.resumeWithException(ex ?: RuntimeException("readSensorDataInfo failed"))
+                beacon!!.readSensorDataInfo(sensorType) { success, rsp, error ->
+                    if (success && rsp != null) cont.resume(rsp)
+                    else cont.resumeWithException(error ?: RuntimeException("readSensorDataInfo failed"))
                 }
             }
+            val total = info.totalRecordNumber ?: 0
+            val deviceUtc = info.readInfoUtcSeconds ?: 0L
             val phoneUtc = System.currentTimeMillis() / 1000
-            log("  totalRecordNumber    = ${info.totalRecordNumber}")
-            log("  unreadRecordNumber   = ${info.unreadRecordNumber}")
-            log("  readInfoUtcSeconds   = ${info.readInfoUtcSeconds}  (device UTC)")
-            log("  phone UTC            = $phoneUtc")
-            log("  clock offset (phone − device) = ${phoneUtc - info.readInfoUtcSeconds}s")
+            log("  totalRecordNumber  = $total")
+            log("  unreadRecordNumber = ${info.unreadRecordNumber}")
+            log("  readInfoUtcSeconds = $deviceUtc  (device UTC)")
+            log("  phone UTC          = $phoneUtc")
+            log("  clock offset (phone − device) = ${phoneUtc - deviceUtc}s")
 
-            // --- readSensorRecord: first batch, NormalOrder, from INVALID_DATA_RECORD_POS ---
-            // KKM's docs don't explicitly specify first-call behaviour. We try
-            // -1 (INVALID_DATA_RECORD_POS) first; if that returns empty while
-            // totalRecordNumber > 0, we retry from 0 and log which one works
-            // so the team can update the main code if needed.
-            suspend fun readFrom(startPos: Int, label: String): Pair<List<Any>, Int> {
+            // --- readSensorRecord: INVALID_DATA_RECORD_POS, NormalOrder, then optional 0L fallback ---
+            suspend fun readFrom(startPos: Long, label: String): Pair<List<Any>, Long> {
                 log("readSensorRecord(start=$label, NormalOrder, n=$batchSize) ...")
-                val rsp = suspendCancellableCoroutine { cont ->
-                    beacon.sensorHistoryData!!.readSensorRecord(
+                val rsp: KBRecordDataRsp = suspendCancellableCoroutine { cont ->
+                    beacon!!.readSensorRecord(
                         sensorType, startPos, KBSensorReadOption.NormalOrder, batchSize
-                    ) { success, ex, r ->
+                    ) { success, r, error ->
                         if (success && r != null) cont.resume(r)
-                        else cont.resumeWithException(ex ?: RuntimeException("readSensorRecord failed"))
+                        else cont.resumeWithException(error ?: RuntimeException("readSensorRecord failed"))
                     }
                 }
-                val list = rsp.readDataRsp ?: emptyList<Any>()
+                val list: List<Any> = rsp.readDataRspList?.toList() ?: emptyList()
                 log("  batch size   = ${list.size}")
                 log("  nextPos      = ${rsp.readDataNextPos}")
-                return list to rsp.readDataNextPos
+                return list to (rsp.readDataNextPos ?: KBRecordDataRsp.INVALID_DATA_RECORD_POS)
             }
 
-            var (firstBatch, _) = readFrom(-1, "INVALID_DATA_RECORD_POS (-1)")
-            var usedStartPos = -1
-            if (firstBatch.isEmpty() && info.totalRecordNumber > 0) {
-                log("  -1 returned empty while total=${info.totalRecordNumber}; retrying from 0 ...")
-                val fallback = readFrom(0, "0")
+            var (firstBatch, _) = readFrom(KBRecordDataRsp.INVALID_DATA_RECORD_POS, "INVALID_DATA_RECORD_POS (${KBRecordDataRsp.INVALID_DATA_RECORD_POS})")
+            var usedStartPos = "INVALID_DATA_RECORD_POS"
+            if (firstBatch.isEmpty() && total > 0) {
+                log("  INVALID_DATA_RECORD_POS returned empty while total=$total; retrying from 0 ...")
+                val fallback = readFrom(0L, "0L")
                 firstBatch = fallback.first
                 if (firstBatch.isNotEmpty()) {
-                    usedStartPos = 0
+                    usedStartPos = "0"
                     log("  → FALLBACK SUCCEEDED at startPos=0. UPDATE MAIN CODE to use 0 instead of INVALID_DATA_RECORD_POS.")
                 } else {
                     log("  → FALLBACK ALSO EMPTY. Check that records exist on this device and sensor variant matches.")
@@ -165,7 +158,7 @@ object KBeaconLibSpike {
             log(
                 when {
                     firstBatch.isNotEmpty() -> "SPIKE PASSED — all expected symbols resolved."
-                    info.totalRecordNumber == 0 -> "SPIKE PASSED — symbols resolved; device has no records yet (freshly activated)."
+                    total == 0 -> "SPIKE PASSED — symbols resolved; device has no records yet (freshly activated)."
                     else -> "SPIKE PARTIAL — symbols resolved but no records returned."
                 }
             )
@@ -174,7 +167,7 @@ object KBeaconLibSpike {
             log("SPIKE FAILED: ${t.javaClass.simpleName}: ${t.message}")
             Report(log = entries.toList(), succeeded = false)
         } finally {
-            runCatching { beacon.disconnect() }
+            runCatching { beacon?.disconnect() }
         }
     }
 }

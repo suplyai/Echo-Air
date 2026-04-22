@@ -2,12 +2,12 @@ package app.suply.echoair.ble
 
 import android.content.Context
 import app.suply.echoair.data.api.ReadingDto
+import com.kkmcn.kbeaconlib2.KBCfgPackage.KBSensorType
 import com.kkmcn.kbeaconlib2.KBConnPara
 import com.kkmcn.kbeaconlib2.KBConnState
-import com.kkmcn.kbeaconlib2.KBException
+import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBRecordDataRsp
 import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBRecordHumidity
 import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBSensorReadOption
-import com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBSensorType
 import com.kkmcn.kbeaconlib2.KBeacon
 import com.kkmcn.kbeaconlib2.KBeaconsMgr
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -90,43 +90,49 @@ class BleConnectionManager @Inject constructor(
         val beacon = resolveBeacon(mac) ?: error("unknown beacon $mac")
         connect(beacon, password)
         try {
-            val sensorType = pickSensorType(beacon)
+            // Single sensor type on S23/S23H — HTHumidity covers both. The
+            // humidity field in KBRecordHumidity is zero / unpopulated on
+            // temperature-only S23 variants but the record class is still
+            // what the library returns.
+            val sensorType = KBSensorType.HTHumidity
 
             // Step 1: query totals + device clock
             val info = readSensorDataInfo(beacon, sensorType)
             val phoneUtcSeconds = System.currentTimeMillis() / 1000
-            val clockOffset = phoneUtcSeconds - info.readInfoUtcSeconds
-            val total = info.totalRecordNumber
+            val deviceUtc = info.readInfoUtcSeconds ?: phoneUtcSeconds
+            val clockOffset = phoneUtcSeconds - deviceUtc
+            val total = info.totalRecordNumber ?: 0
             Timber.d(
                 "Device %s: total=%d unread=%d deviceUtc=%d phoneUtc=%d offset=%ds",
-                mac, total, info.unreadRecordNumber, info.readInfoUtcSeconds, phoneUtcSeconds, clockOffset
+                mac, total, info.unreadRecordNumber ?: -1, deviceUtc, phoneUtcSeconds, clockOffset
             )
             onProgress?.invoke(DownloadProgress(0, total))
 
             // Step 2: paged reads in NormalOrder, starting from INVALID_DATA_RECORD_POS.
             //
-            // KKM's docs say INVALID_DATA_RECORD_POS (-1) is the correct start
-            // cursor for a full replay, but the first-call behaviour isn't
-            // explicitly documented. If we get an empty first batch while the
-            // device reports total > 0, retry once from startPos = 0. The
-            // spike harness is the canonical place to verify which value the
-            // library actually wants; this fallback just stops the rare
-            // mismatch from silently producing zero-record uploads.
+            // KKM's docs say INVALID_DATA_RECORD_POS is the correct start
+            // cursor for a full replay (confirmed as 4294967295L / unsigned
+            // 32-bit max from the library source, not -1). If we get an
+            // empty first batch while the device reports total > 0, retry
+            // once from startPos = 0. The spike harness is the canonical
+            // place to verify which value the library actually wants; this
+            // fallback just stops the rare mismatch from silently producing
+            // zero-record uploads.
             val collected = ArrayList<ReadingDto>(total.coerceAtLeast(0))
-            var nextPos = INVALID_DATA_RECORD_POS
+            var nextPos = KBRecordDataRsp.INVALID_DATA_RECORD_POS
             var firstBatch = true
             while (collected.size < total) {
                 var batch = readSensorBatch(beacon, sensorType, nextPos, BATCH_SIZE)
                 if (firstBatch && batch.records.isEmpty() && total > 0) {
                     Timber.w("First batch empty at startPos=%d; retrying from 0", nextPos)
-                    batch = readSensorBatch(beacon, sensorType, 0, BATCH_SIZE)
+                    batch = readSensorBatch(beacon, sensorType, 0L, BATCH_SIZE)
                 }
                 firstBatch = false
                 if (batch.records.isEmpty()) break   // device said done
                 collected.addAll(batch.records)
                 nextPos = batch.nextPos
                 onProgress?.invoke(DownloadProgress(collected.size, total))
-                if (batch.done || nextPos == INVALID_DATA_RECORD_POS) break
+                if (batch.done || nextPos == KBRecordDataRsp.INVALID_DATA_RECORD_POS) break
             }
             LogReadResult(records = collected, deviceClockOffsetSeconds = clockOffset)
         } finally {
@@ -134,89 +140,69 @@ class BleConnectionManager @Inject constructor(
         }
     }
 
-    private fun pickSensorType(beacon: KBeacon): Int {
-        val common = beacon.commonCfg
-        val supportsHumidity = common?.isSupportHumiditySensor == true
-        return if (supportsHumidity) KBSensorType.HTHumidity else KBSensorType.Temperature
-    }
-
     private suspend fun connect(beacon: KBeacon, password: String) =
         suspendCancellableCoroutine { cont ->
             val para = KBConnPara().apply {
-                syncUtcTime = false       // don't overwrite the device clock — we *want* the drift
+                syncUtcTime = false       // preserve drifted clock so we can capture the offset
                 readCommPara = true        // triggers MTU negotiation + common-cfg read
                 readSensorPara = true
                 readTriggerPara = false
                 readSlotPara = false
             }
-            beacon.connect(password, CONNECT_TIMEOUT_MS, para) { _, state, ex ->
+            beacon.connectEnhanced(password, CONNECT_TIMEOUT_MS, para) { _, state, nReason ->
                 when (state) {
                     KBConnState.Connected -> if (!cont.isCompleted) cont.resume(Unit)
                     KBConnState.Disconnected -> if (!cont.isCompleted) {
-                        cont.resumeWithException(ex ?: KBException(-1, "disconnected during connect"))
+                        cont.resumeWithException(
+                            RuntimeException("disconnected during connect (reason=$nReason)")
+                        )
                     }
                     else -> Unit
                 }
             }
         }
 
-    private suspend fun readSensorDataInfo(beacon: KBeacon, sensorType: Int): SensorInfo =
+    private suspend fun readSensorDataInfo(
+        beacon: KBeacon, sensorType: Int
+    ): com.kkmcn.kbeaconlib2.KBSensorHistoryData.KBRecordInfoRsp =
         suspendCancellableCoroutine { cont ->
-            val reader = beacon.sensorHistoryData
-                ?: return@suspendCancellableCoroutine cont.resumeWithException(
-                    IllegalStateException("history service unavailable")
-                )
-            reader.readSensorDataInfo(sensorType) { success, ex, dataInfo ->
-                if (success && dataInfo != null) {
-                    cont.resume(
-                        SensorInfo(
-                            totalRecordNumber = dataInfo.totalRecordNumber,
-                            unreadRecordNumber = dataInfo.unreadRecordNumber,
-                            readInfoUtcSeconds = dataInfo.readInfoUtcSeconds
-                        )
-                    )
-                } else {
-                    cont.resumeWithException(ex ?: IllegalStateException("readSensorDataInfo failed"))
-                }
+            beacon.readSensorDataInfo(sensorType) { success, info, error ->
+                if (success && info != null) cont.resume(info)
+                else cont.resumeWithException(error ?: IllegalStateException("readSensorDataInfo failed"))
             }
         }
 
     private suspend fun readSensorBatch(
         beacon: KBeacon,
         sensorType: Int,
-        startPos: Int,
+        startPos: Long,
         maxRecords: Int
     ): Batch = suspendCancellableCoroutine { cont ->
-        val reader = beacon.sensorHistoryData
-            ?: return@suspendCancellableCoroutine cont.resumeWithException(
-                IllegalStateException("history service unavailable")
-            )
-        reader.readSensorRecord(
+        beacon.readSensorRecord(
             sensorType,
             startPos,
             KBSensorReadOption.NormalOrder,
             maxRecords
-        ) { success, ex, rsp ->
+        ) { success, rsp, error ->
             if (!success || rsp == null) {
-                cont.resumeWithException(ex ?: IllegalStateException("readSensorRecord failed"))
+                cont.resumeWithException(error ?: IllegalStateException("readSensorRecord failed"))
                 return@readSensorRecord
             }
-            val records = rsp.readDataRsp?.mapNotNull { raw ->
+            val records = rsp.readDataRspList?.mapNotNull { raw ->
                 val r = raw as? KBRecordHumidity ?: return@mapNotNull null
-                val ts = r.utcTime
-                val temp = r.temperature
-                if (ts <= 0) null
+                if (r.utcTime <= 0) null
                 else ReadingDto(
-                    temperature = temp.toDouble(),
-                    humidity = r.humidity?.toDouble(),
-                    timestamp = ts
+                    temperature = r.temperature.toDouble(),
+                    humidity = r.humidity.toDouble(),
+                    timestamp = r.utcTime
                 )
             } ?: emptyList()
+            val nextPos = rsp.readDataNextPos ?: KBRecordDataRsp.INVALID_DATA_RECORD_POS
             cont.resume(
                 Batch(
                     records = records,
-                    nextPos = rsp.readDataNextPos,
-                    done = rsp.readDataNextPos == INVALID_DATA_RECORD_POS
+                    nextPos = nextPos,
+                    done = nextPos == KBRecordDataRsp.INVALID_DATA_RECORD_POS
                 )
             )
         }
@@ -260,15 +246,9 @@ class BleConnectionManager @Inject constructor(
         runCatching { beaconFor(mac)?.disconnect() }
     }
 
-    private data class SensorInfo(
-        val totalRecordNumber: Int,
-        val unreadRecordNumber: Int,
-        val readInfoUtcSeconds: Long
-    )
-
     private data class Batch(
         val records: List<ReadingDto>,
-        val nextPos: Int,
+        val nextPos: Long,
         val done: Boolean
     )
 
@@ -278,6 +258,5 @@ class BleConnectionManager @Inject constructor(
         const val CONNECT_TIMEOUT_MS = 20_000
         const val WARMUP_MS = 8_000L           // short KBeaconsMgr scan to prime getBeacon cache
         const val BATCH_SIZE = 200             // tune 100–500 based on stability
-        const val INVALID_DATA_RECORD_POS = -1
     }
 }

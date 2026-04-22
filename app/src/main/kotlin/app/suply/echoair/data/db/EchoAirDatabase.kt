@@ -2,7 +2,6 @@ package app.suply.echoair.data.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverters
 
 @Database(
     entities = [
@@ -12,9 +11,8 @@ import androidx.room.TypeConverters
         PendingUpload::class
     ],
     version = 1,
-    exportSchema = true
+    exportSchema = false
 )
-@TypeConverters(Converters::class)
 abstract class EchoAirDatabase : RoomDatabase() {
     abstract fun shipments(): ShipmentDao
     abstract fun devices(): DeviceDao

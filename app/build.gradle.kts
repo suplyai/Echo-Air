@@ -122,7 +122,7 @@ dependencies {
 
     implementation(libs.coil.compose)
 
-    implementation(libs.kbeaconlib)
+    implementation(project(":kbeaconlib2"))
 
     implementation(libs.timber)
 
