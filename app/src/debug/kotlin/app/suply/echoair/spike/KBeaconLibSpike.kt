@@ -162,7 +162,13 @@ object KBeaconLibSpike {
                 }
             }
 
-            log(if (firstBatch.isNotEmpty()) "SPIKE PASSED — all expected symbols resolved." else "SPIKE PARTIAL — symbols resolved but no records returned.")
+            log(
+                when {
+                    firstBatch.isNotEmpty() -> "SPIKE PASSED — all expected symbols resolved."
+                    info.totalRecordNumber == 0 -> "SPIKE PASSED — symbols resolved; device has no records yet (freshly activated)."
+                    else -> "SPIKE PARTIAL — symbols resolved but no records returned."
+                }
+            )
             Report(log = entries.toList(), succeeded = true)
         } catch (t: Throwable) {
             log("SPIKE FAILED: ${t.javaClass.simpleName}: ${t.message}")
