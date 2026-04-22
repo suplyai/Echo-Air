@@ -69,6 +69,17 @@ android {
             excludes += "/META-INF/DEPENDENCIES"
         }
     }
+
+    // Per-ABI splits keep each APK small enough to be manageable — the ML Kit
+    // barhopper native lib alone is ~5 MB per ABI, 21 MB across all four.
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false
+        }
+    }
 }
 
 dependencies {
