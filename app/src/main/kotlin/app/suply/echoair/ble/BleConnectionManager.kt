@@ -103,12 +103,26 @@ class BleConnectionManager @Inject constructor(
             )
             onProgress?.invoke(DownloadProgress(0, total))
 
-            // Step 2: paged reads in NormalOrder, starting from INVALID_DATA_RECORD_POS
+            // Step 2: paged reads in NormalOrder, starting from INVALID_DATA_RECORD_POS.
+            //
+            // KKM's docs say INVALID_DATA_RECORD_POS (-1) is the correct start
+            // cursor for a full replay, but the first-call behaviour isn't
+            // explicitly documented. If we get an empty first batch while the
+            // device reports total > 0, retry once from startPos = 0. The
+            // spike harness is the canonical place to verify which value the
+            // library actually wants; this fallback just stops the rare
+            // mismatch from silently producing zero-record uploads.
             val collected = ArrayList<ReadingDto>(total.coerceAtLeast(0))
             var nextPos = INVALID_DATA_RECORD_POS
+            var firstBatch = true
             while (collected.size < total) {
-                val batch = readSensorBatch(beacon, sensorType, nextPos, BATCH_SIZE)
-                if (batch.records.isEmpty()) break   // defensive: device said done
+                var batch = readSensorBatch(beacon, sensorType, nextPos, BATCH_SIZE)
+                if (firstBatch && batch.records.isEmpty() && total > 0) {
+                    Timber.w("First batch empty at startPos=%d; retrying from 0", nextPos)
+                    batch = readSensorBatch(beacon, sensorType, 0, BATCH_SIZE)
+                }
+                firstBatch = false
+                if (batch.records.isEmpty()) break   // device said done
                 collected.addAll(batch.records)
                 nextPos = batch.nextPos
                 onProgress?.invoke(DownloadProgress(collected.size, total))
@@ -215,10 +229,16 @@ class BleConnectionManager @Inject constructor(
     }
 
     /**
-     * KBeaconsMgr.getBeacon only returns beacons the library's own scanner
-     * has seen. Our main-path scanner uses the native BluetoothLeScanner for
-     * low overhead, so the manager cache is typically cold on first call —
-     * we prime it with a short KBeaconsMgr.startScanning window here.
+     * Prime KBeaconsMgr's internal beacon cache before attempting to connect.
+     *
+     * DO NOT REMOVE — this warmup is load-bearing. KBeaconsMgr.getBeacon(mac)
+     * only returns beacons that the library's *own* scanner discovered via
+     * KBeaconsMgr.startScanning. Our primary BleScanner uses Android's
+     * native BluetoothLeScanner for lower overhead in the collection UI,
+     * which means the KBeaconsMgr cache is typically cold when we try to
+     * connect. Without this short startScanning window, getBeacon returns
+     * null and every download fails with "unknown beacon <mac>" even
+     * though the device is clearly in range.
      */
     private suspend fun resolveBeacon(mac: String): KBeacon? {
         beaconFor(mac)?.let { return it }

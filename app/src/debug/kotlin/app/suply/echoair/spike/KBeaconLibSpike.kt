@@ -118,21 +118,40 @@ object KBeaconLibSpike {
             log("  clock offset (phone − device) = ${phoneUtc - info.readInfoUtcSeconds}s")
 
             // --- readSensorRecord: first batch, NormalOrder, from INVALID_DATA_RECORD_POS ---
-            log("readSensorRecord(start=INVALID_DATA_RECORD_POS, NormalOrder, n=$batchSize) ...")
-            val rsp = suspendCancellableCoroutine { cont ->
-                beacon.sensorHistoryData!!.readSensorRecord(
-                    sensorType,
-                    -1,                                // INVALID_DATA_RECORD_POS
-                    KBSensorReadOption.NormalOrder,
-                    batchSize
-                ) { success, ex, r ->
-                    if (success && r != null) cont.resume(r)
-                    else cont.resumeWithException(ex ?: RuntimeException("readSensorRecord failed"))
+            // KKM's docs don't explicitly specify first-call behaviour. We try
+            // -1 (INVALID_DATA_RECORD_POS) first; if that returns empty while
+            // totalRecordNumber > 0, we retry from 0 and log which one works
+            // so the team can update the main code if needed.
+            suspend fun readFrom(startPos: Int, label: String): Pair<List<Any>, Int> {
+                log("readSensorRecord(start=$label, NormalOrder, n=$batchSize) ...")
+                val rsp = suspendCancellableCoroutine { cont ->
+                    beacon.sensorHistoryData!!.readSensorRecord(
+                        sensorType, startPos, KBSensorReadOption.NormalOrder, batchSize
+                    ) { success, ex, r ->
+                        if (success && r != null) cont.resume(r)
+                        else cont.resumeWithException(ex ?: RuntimeException("readSensorRecord failed"))
+                    }
+                }
+                val list = rsp.readDataRsp ?: emptyList<Any>()
+                log("  batch size   = ${list.size}")
+                log("  nextPos      = ${rsp.readDataNextPos}")
+                return list to rsp.readDataNextPos
+            }
+
+            var (firstBatch, _) = readFrom(-1, "INVALID_DATA_RECORD_POS (-1)")
+            var usedStartPos = -1
+            if (firstBatch.isEmpty() && info.totalRecordNumber > 0) {
+                log("  -1 returned empty while total=${info.totalRecordNumber}; retrying from 0 ...")
+                val fallback = readFrom(0, "0")
+                firstBatch = fallback.first
+                if (firstBatch.isNotEmpty()) {
+                    usedStartPos = 0
+                    log("  → FALLBACK SUCCEEDED at startPos=0. UPDATE MAIN CODE to use 0 instead of INVALID_DATA_RECORD_POS.")
+                } else {
+                    log("  → FALLBACK ALSO EMPTY. Check that records exist on this device and sensor variant matches.")
                 }
             }
-            val firstBatch = rsp.readDataRsp ?: emptyList<Any>()
-            log("  batch size   = ${firstBatch.size}")
-            log("  nextPos      = ${rsp.readDataNextPos}")
+            log("  startPos that returned records = $usedStartPos")
 
             firstBatch.take(3).forEachIndexed { i, raw ->
                 val r = raw as? KBRecordHumidity
@@ -143,7 +162,7 @@ object KBeaconLibSpike {
                 }
             }
 
-            log("SPIKE PASSED — all expected symbols resolved.")
+            log(if (firstBatch.isNotEmpty()) "SPIKE PASSED — all expected symbols resolved." else "SPIKE PARTIAL — symbols resolved but no records returned.")
             Report(log = entries.toList(), succeeded = true)
         } catch (t: Throwable) {
             log("SPIKE FAILED: ${t.javaClass.simpleName}: ${t.message}")

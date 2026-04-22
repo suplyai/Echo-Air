@@ -1,0 +1,29 @@
+# Template showing the shape of a passing spike run. Replace <...> placeholders
+# with real values when committing an actual capture from hardware.
+
+WARMUP: KBeaconsMgr.startScanning() for up to 8s waiting for BC:57:29:1C:D6:A6 ...
+WARMUP: resolved KBeacon, name=KBPRO_633640 rssi=-52
+CONNECT: BC:57:29:1C:D6:A6
+Connected. DeviceInfo model=S23h_NRF52XX hwRev=<...> fwRev=<...>
+commonCfg.isSupportHumiditySensor = true
+KBSensorType selected = <N> (HTHumidity=<N>, Temperature=<N>)
+readSensorDataInfo(<N>) ...
+  totalRecordNumber    = 28412
+  unreadRecordNumber   = 28412
+  readInfoUtcSeconds   = 1745332118   (device UTC)
+  phone UTC            = 1745332123
+  clock offset (phone − device) = 5s
+readSensorRecord(start=INVALID_DATA_RECORD_POS, NormalOrder, n=10) ...
+  batch size   = 10
+  nextPos      = 10
+  record[0] utcTime=1744727318 temperature=2.1 humidity=92.4
+  record[1] utcTime=1744727618 temperature=2.2 humidity=92.3
+  record[2] utcTime=1744727918 temperature=2.1 humidity=92.5
+SPIKE PASSED — all expected symbols resolved.
+
+# Notes to capture when committing a real log:
+# - Handset model + Android version
+# - S23H firmware version from the DeviceInfo line above
+# - Which startPos value returned records on the first call
+#   (expected: INVALID_DATA_RECORD_POS / -1; fallback: 0)
+# - Observed throughput if full download attempted (records / minute)
