@@ -242,18 +242,29 @@ object KBeaconLibSpike {
                 return list to (rsp.readDataNextPos ?: KBRecordDataRsp.INVALID_DATA_RECORD_POS)
             }
 
-            var (firstBatch, _) = readFrom(KBRecordDataRsp.INVALID_DATA_RECORD_POS,
-                "INVALID_DATA_RECORD_POS (${KBRecordDataRsp.INVALID_DATA_RECORD_POS})")
-            var usedStartPos = "INVALID_DATA_RECORD_POS"
+            var firstBatch: List<Any> = emptyList()
+            var usedStartPos: String = "none"
+            try {
+                firstBatch = readFrom(
+                    KBRecordDataRsp.INVALID_DATA_RECORD_POS,
+                    "INVALID_DATA_RECORD_POS (${KBRecordDataRsp.INVALID_DATA_RECORD_POS})"
+                ).first
+                if (firstBatch.isNotEmpty()) usedStartPos = "INVALID_DATA_RECORD_POS"
+            } catch (t: Throwable) {
+                log("  INVALID_DATA_RECORD_POS threw: ${t.javaClass.simpleName}: ${t.message}")
+            }
             if (firstBatch.isEmpty() && total > 0) {
-                log("  INVALID_DATA_RECORD_POS returned empty while total=$total; retrying from 0 ...")
-                val fallback = readFrom(0L, "0L")
-                firstBatch = fallback.first
-                if (firstBatch.isNotEmpty()) {
-                    usedStartPos = "0"
-                    log("  → FALLBACK SUCCEEDED at startPos=0. UPDATE MAIN CODE to use 0 instead of INVALID_DATA_RECORD_POS.")
-                } else {
-                    log("  → FALLBACK ALSO EMPTY. Check that records exist on this device and sensor variant matches.")
+                log("  → FALLBACK: retrying from startPos = 0L ...")
+                try {
+                    firstBatch = readFrom(0L, "0L").first
+                    if (firstBatch.isNotEmpty()) {
+                        usedStartPos = "0"
+                        log("  → FALLBACK SUCCEEDED at startPos=0. Main code now uses 0L as the default.")
+                    } else {
+                        log("  → FALLBACK also returned empty.")
+                    }
+                } catch (t: Throwable) {
+                    log("  → FALLBACK threw: ${t.javaClass.simpleName}: ${t.message}")
                 }
             }
             log("  startPos that returned records = $usedStartPos")

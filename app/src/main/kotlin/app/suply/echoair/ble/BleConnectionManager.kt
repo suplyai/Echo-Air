@@ -111,26 +111,23 @@ class BleConnectionManager @Inject constructor(
             )
             onProgress?.invoke(DownloadProgress(0, total))
 
-            // Step 2: paged reads in NormalOrder, starting from INVALID_DATA_RECORD_POS.
+            // Step 2: paged reads in NormalOrder, starting from 0L.
             //
-            // KKM's docs say INVALID_DATA_RECORD_POS is the correct start
-            // cursor for a full replay (confirmed as 4294967295L / unsigned
-            // 32-bit max from the library source, not -1). If we get an
-            // empty first batch while the device reports total > 0, retry
-            // once from startPos = 0. The spike harness is the canonical
-            // place to verify which value the library actually wants; this
-            // fallback just stops the rare mismatch from silently producing
-            // zero-record uploads.
+            // Real-hardware spike on an S23H (serial 633640, fw from Apr 2026)
+            // confirmed that KBRecordDataRsp.INVALID_DATA_RECORD_POS throws
+            // "Read sensor record from device failed" when used as the initial
+            // cursor, even though the library's own constant claims otherwise.
+            // KKM's KBeaconProDemo_Android §4.3.6 uses 0L as the initial
+            // NormalOrder cursor, which matches observed behaviour. Subsequent
+            // batches use readDataNextPos from each response.
+            //
+            // If you see this start to fail with an empty first batch on new
+            // firmware, check the spike harness output — it's the canonical
+            // place we verify cursor semantics.
             val collected = ArrayList<ReadingDto>(total.coerceAtLeast(0))
-            var nextPos = KBRecordDataRsp.INVALID_DATA_RECORD_POS
-            var firstBatch = true
+            var nextPos = 0L
             while (collected.size < total) {
-                var batch = readSensorBatch(beacon, sensorType, nextPos, BATCH_SIZE)
-                if (firstBatch && batch.records.isEmpty() && total > 0) {
-                    Timber.w("First batch empty at startPos=%d; retrying from 0", nextPos)
-                    batch = readSensorBatch(beacon, sensorType, 0L, BATCH_SIZE)
-                }
-                firstBatch = false
+                val batch = readSensorBatch(beacon, sensorType, nextPos, BATCH_SIZE)
                 if (batch.records.isEmpty()) break   // device said done
                 collected.addAll(batch.records)
                 nextPos = batch.nextPos
