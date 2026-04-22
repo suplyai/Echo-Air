@@ -60,9 +60,11 @@ fun CollectionScreen(
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 add(Manifest.permission.BLUETOOTH_SCAN)
                 add(Manifest.permission.BLUETOOTH_CONNECT)
-            } else {
-                add(Manifest.permission.ACCESS_FINE_LOCATION)
             }
+            // FINE_LOCATION is required for BLE scanning on every Android
+            // version in practice — pre-12 needs it by spec, and some OEMs
+            // (Honor / Huawei / Xiaomi) silently require it on 12+ too.
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
         }.toTypedArray()
     }
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->

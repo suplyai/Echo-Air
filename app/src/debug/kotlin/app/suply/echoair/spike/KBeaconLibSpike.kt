@@ -280,10 +280,15 @@ object KBeaconLibSpike {
         }
     }
 
-    private fun requiredPermissions(): List<String> =
+    private fun requiredPermissions(): List<String> = buildList {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
-        } else listOf(Manifest.permission.ACCESS_FINE_LOCATION)
+            add(Manifest.permission.BLUETOOTH_SCAN)
+            add(Manifest.permission.BLUETOOTH_CONNECT)
+        }
+        // FINE_LOCATION required for BLE scanning on every Android version in
+        // practice. Honor / Huawei / Xiaomi silently require it on 12+ too.
+        add(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
 
     private fun ByteArray.toHexShort(limit: Int = 32): String {
         val take = take(limit)

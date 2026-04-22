@@ -43,9 +43,15 @@ private fun SpikeScreen() {
     val context = androidx.compose.ui.platform.LocalContext.current
 
     val perms = remember {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            arrayOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
-        } else arrayOf(Manifest.permission.ACCESS_FINE_LOCATION)
+        buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                add(Manifest.permission.BLUETOOTH_SCAN)
+                add(Manifest.permission.BLUETOOTH_CONNECT)
+            }
+            // Always request FINE_LOCATION — OEMs like Honor silently require it
+            // for BLE scanning on 12+ despite the neverForLocation declaration.
+            add(Manifest.permission.ACCESS_FINE_LOCATION)
+        }.toTypedArray()
     }
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
     LaunchedEffect(Unit) { permLauncher.launch(perms) }

@@ -6,22 +6,30 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- BLE, Android 12+ -->
-    <uses-permission
-        android:name="android.permission.BLUETOOTH_SCAN"
-        android:usesPermissionFlags="neverForLocation"
-        tools:targetApi="s" />
+    <!--
+      BLE runtime permissions. We intentionally do NOT declare neverForLocation
+      on BLUETOOTH_SCAN. Honor / MagicOS and Huawei / EMUI (and to a lesser
+      extent Xiaomi / MIUI) silently require ACCESS_FINE_LOCATION to be
+      granted before BluetoothLeScanner.startScan returns any results, even
+      when the app declares neverForLocation. Confirmed via parallel native
+      + library scans on an Honor ALI-NX1 with a device advertising at
+      -49 dBm: zero hits from either scanner until FINE_LOCATION was granted.
+      LatAm pilot hardware will have a large Honor/Huawei/Xiaomi footprint,
+      so we pay the UX cost of asking for Location on every version rather
+      than ship an app that silently breaks on a large slice of deployments.
+    -->
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
-    <!-- BLE legacy (Android 11 only, since minSdk = 30) -->
-    <uses-permission
-        android:name="android.permission.ACCESS_FINE_LOCATION"
-        android:maxSdkVersion="30" />
-    <uses-permission
-        android:name="android.permission.ACCESS_COARSE_LOCATION"
-        android:maxSdkVersion="30" />
+    <!--
+      Required for BLE scanning on all Android versions in practice. The app
+      itself does not read the user's location — see the rationale string
+      that the runtime request surfaces.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
-    <!-- Background location for ambient mode on older Android versions -->
+    <!-- Background location for ambient mode on pre-Android-12 builds only -->
     <uses-permission
         android:name="android.permission.ACCESS_BACKGROUND_LOCATION"
         android:maxSdkVersion="30" />

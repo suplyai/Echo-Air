@@ -56,6 +56,6 @@
 
     <string name="permission_ble_rationale">Echo Air needs Bluetooth permission to collect data from shipment loggers.</string>
     <string name="permission_camera_rationale">Echo Air needs camera access to identify shipments from their documents.</string>
-    <string name="permission_location_rationale">On this Android version, Bluetooth scanning also requires location permission. Echo Air never uses your location itself.</string>
+    <string name="permission_location_rationale">Android requires location permission before it will scan for Bluetooth devices. Some phone manufacturers (Honor, Huawei, Xiaomi) require this even on newer Android versions. Echo Air does not read or use your location itself.</string>
     <string name="permission_notifications_rationale">Echo Air shows a persistent notification while ambient scanning is active.</string>
 </resources>

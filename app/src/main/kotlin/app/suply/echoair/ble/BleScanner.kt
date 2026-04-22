@@ -43,9 +43,17 @@ class BleScanner @Inject constructor(
     fun bluetoothReady(): Boolean = adapter?.isEnabled == true
 
     fun hasPermissions(): Boolean {
-        val scan = ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN)
-        val connect = ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT)
-        return scan == PackageManager.PERMISSION_GRANTED && connect == PackageManager.PERMISSION_GRANTED
+        // FINE_LOCATION is required on every version in practice — some OEMs
+        // (Honor, Huawei, Xiaomi) silently gate BluetoothLeScanner.startScan
+        // on it even on Android 12+ without neverForLocation.
+        val fine = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S) return fine
+        val scan = ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_SCAN) ==
+            PackageManager.PERMISSION_GRANTED
+        val connect = ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
+            PackageManager.PERMISSION_GRANTED
+        return scan && connect && fine
     }
 
     @SuppressLint("MissingPermission")
