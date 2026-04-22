@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <!-- JWT and local cache should never be backed up -->
+    <exclude domain="sharedpref" path="echoair_secure.xml" />
+    <exclude domain="database" path="echoair.db" />
+</full-backup-content>

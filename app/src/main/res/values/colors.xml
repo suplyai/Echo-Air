@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_primary">#0B6E4F</color>
+    <color name="brand_on_primary">#FFFFFF</color>
+    <color name="brand_surface">#F7F7F5</color>
+    <color name="brand_outline">#E5E5E0</color>
+    <color name="state_searching">#A3A3A3</color>
+    <color name="state_in_range">#F59E0B</color>
+    <color name="state_syncing">#2563EB</color>
+    <color name="state_collected">#0B6E4F</color>
+    <color name="state_missing">#D97706</color>
+    <color name="state_error">#B91C1C</color>
+</resources>
