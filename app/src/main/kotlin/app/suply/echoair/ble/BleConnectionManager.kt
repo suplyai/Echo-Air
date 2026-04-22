@@ -1,5 +1,7 @@
 package app.suply.echoair.ble
 
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.content.Context
 import app.suply.echoair.data.api.ReadingDto
 import com.kkmcn.kbeaconlib2.KBCfgPackage.KBSensorType
@@ -12,7 +14,6 @@ import com.kkmcn.kbeaconlib2.KBeacon
 import com.kkmcn.kbeaconlib2.KBeaconsMgr
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -61,6 +62,8 @@ class BleConnectionManager @Inject constructor(
 
     private val slots = Semaphore(MAX_CONCURRENT)
     private val mgr: KBeaconsMgr? = KBeaconsMgr.sharedBeaconManager(context)
+    private val btAdapter: BluetoothAdapter? =
+        context.getSystemService(BluetoothManager::class.java)?.adapter
 
     suspend fun downloadLog(
         mac: String,
@@ -208,42 +211,47 @@ class BleConnectionManager @Inject constructor(
         }
     }
 
-    private fun beaconFor(mac: String): KBeacon? {
-        val formatted = if (mac.contains(":")) mac.uppercase()
-                        else mac.uppercase().chunked(2).joinToString(":")
-        return mgr?.getBeacon(formatted)
-    }
+    private fun formatMac(mac: String): String =
+        if (mac.contains(":")) mac.uppercase()
+        else mac.uppercase().chunked(2).joinToString(":")
+
+    private fun cachedBeacon(mac: String): KBeacon? = mgr?.getBeacon(formatMac(mac))
 
     /**
-     * Prime KBeaconsMgr's internal beacon cache before attempting to connect.
+     * Obtain a KBeacon we can connect through.
      *
-     * DO NOT REMOVE — this warmup is load-bearing. KBeaconsMgr.getBeacon(mac)
-     * only returns beacons that the library's *own* scanner discovered via
-     * KBeaconsMgr.startScanning. Our primary BleScanner uses Android's
-     * native BluetoothLeScanner for lower overhead in the collection UI,
-     * which means the KBeaconsMgr cache is typically cold when we try to
-     * connect. Without this short startScanning window, getBeacon returns
-     * null and every download fails with "unknown beacon <mac>" even
-     * though the device is clearly in range.
+     * We do NOT depend on KBeaconsMgr's scan cache being populated — the
+     * library's scanner has shown itself to be unreliable on some OEM
+     * builds (Honor / Huawei in particular have returned no cache hits
+     * even when the device is clearly advertising at high RSSI). Our UI
+     * already runs Android's native BluetoothLeScanner in
+     * [BleScanner], so the KBeaconsMgr cache is redundant work anyway.
+     *
+     * Instead we use the MAC to get a BluetoothDevice directly from the
+     * system BluetoothAdapter (pure lookup, no I/O) and wire it into a
+     * freshly-constructed KBeacon via the library's public
+     * attach2Device API. The library's [KBeacon.connectEnhanced] then
+     * has everything it needs — it just calls mBleDevice.connectGatt.
+     *
+     * We still check the manager's cache first so we reuse any instance
+     * the library might have created on its own, preserving per-beacon
+     * state across multiple connects.
      */
-    private suspend fun resolveBeacon(mac: String): KBeacon? {
-        beaconFor(mac)?.let { return it }
-        val m = mgr ?: return null
-        runCatching { m.startScanning() }
-        try {
-            val deadline = System.currentTimeMillis() + WARMUP_MS
-            while (System.currentTimeMillis() < deadline) {
-                beaconFor(mac)?.let { return it }
-                delay(250)
+    private fun resolveBeacon(mac: String): KBeacon? {
+        cachedBeacon(mac)?.let { return it }
+        val formatted = formatMac(mac)
+        val device = runCatching { btAdapter?.getRemoteDevice(formatted) }.getOrNull()
+            ?: run {
+                Timber.w("BluetoothAdapter.getRemoteDevice($formatted) returned null")
+                return null
             }
-        } finally {
-            runCatching { m.stopScanning() }
-        }
-        return beaconFor(mac)
+        val beacon = KBeacon(formatted, context)
+        beacon.attach2Device(device)
+        return beacon
     }
 
     private fun disconnectQuietly(mac: String) {
-        runCatching { beaconFor(mac)?.disconnect() }
+        runCatching { cachedBeacon(mac)?.disconnect() }
     }
 
     private data class Batch(
@@ -256,7 +264,6 @@ class BleConnectionManager @Inject constructor(
         const val MAX_CONCURRENT = 4           // platform cap is typically 4–7
         const val MAX_ATTEMPTS = 3
         const val CONNECT_TIMEOUT_MS = 20_000
-        const val WARMUP_MS = 8_000L           // short KBeaconsMgr scan to prime getBeacon cache
         const val BATCH_SIZE = 200             // tune 100–500 based on stability
     }
 }
