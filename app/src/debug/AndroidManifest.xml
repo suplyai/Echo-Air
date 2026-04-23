@@ -2,19 +2,20 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application>
         <!--
-          Debug-only entry point. Launch from the device shell:
-            adb shell am start -n app.suply.echoair.debug/app.suply.echoair.spike.SpikeActivity
-          Or from the app's Settings screen (debug-only button).
+          Debug-only entry point, reachable in two ways:
+            1. The Settings screen's "Run kbeaconlib2 spike (debug)" button.
+            2. adb shell am start -n app.suply.echoair.debug/app.suply.echoair.spike.SpikeActivity
+
+          NO MAIN/LAUNCHER intent filter — that would register a second
+          launcher icon alongside MainActivity and some OEM launchers
+          (Honor/MagicOS observed) silently pick the spike as the default,
+          stealing the app's home-screen entry point. Keep exported=true
+          so it stays launchable from the Settings button and adb.
         -->
         <activity
             android:name="app.suply.echoair.spike.SpikeActivity"
             android:exported="true"
             android:label="Echo Air — kbeaconlib2 spike"
-            android:theme="@style/Theme.EchoAir">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
+            android:theme="@style/Theme.EchoAir" />
     </application>
 </manifest>
