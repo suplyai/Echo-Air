@@ -52,6 +52,17 @@ class ShipmentRepository @Inject constructor(
         return resp.shipment
     }
 
+    /**
+     * Manual-entry path for the "Enter AWB" fallback. Reuses the vision
+     * endpoint with the [VisionRequest.awbNumber] field set, so the
+     * response shape is identical to a vision-AI capture.
+     */
+    suspend fun identifyFromAwb(awbNumber: String): VisionResponse {
+        val resp = api.identifyShipment(VisionRequest(awbNumber = awbNumber.trim()))
+        resp.shipment?.let { cache(it) }
+        return resp
+    }
+
     suspend fun searchByAwb(query: String): List<ShipmentDto> {
         val resp = api.listShipments(status = "in_transit", search = query)
         resp.shipments.forEach { cache(it) }

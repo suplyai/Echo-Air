@@ -87,6 +87,41 @@ fun CaptureScreen(
                     )
                 }
 
+                // Manual-entry fallback — real consignees will hit damaged
+                // QR stickers, poor lighting, denied camera, or just prefer
+                // typing. This button sits above any dialogs via zIndex.
+                var showManualEntry by remember { mutableStateOf(false) }
+                TextButton(
+                    onClick = { showManualEntry = true },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp),
+                    colors = ButtonDefaults.textButtonColors(
+                        containerColor = Color.Black.copy(alpha = 0.55f),
+                        contentColor = Color.White
+                    )
+                ) {
+                    Text(
+                        when (mode) {
+                            CaptureMode.DOCUMENT -> "Enter AWB manually"
+                            CaptureMode.QR -> "Enter device ID manually"
+                        }
+                    )
+                }
+                if (showManualEntry) {
+                    ManualEntryDialog(
+                        mode = mode,
+                        onDismiss = { showManualEntry = false },
+                        onSubmit = { typed ->
+                            showManualEntry = false
+                            when (mode) {
+                                CaptureMode.DOCUMENT -> vm.identifyByAwb(typed)
+                                CaptureMode.QR -> vm.lookupByIdentifier(typed)
+                            }
+                        }
+                    )
+                }
+
                 if (state.loading) {
                     Box(
                         modifier = Modifier
@@ -140,10 +175,22 @@ private fun failureCopy(failure: CaptureViewModel.Failure): Pair<String, String>
     )
     is CaptureViewModel.Failure.Server -> Pair(
         "Something went wrong",
-        if (failure.httpCode > 0)
-            "Suply returned an error (HTTP ${failure.httpCode}). Try again in a moment, or contact your shipper if it keeps happening."
-        else
-            "Unexpected error. Try again in a moment."
+        buildString {
+            append(
+                if (failure.httpCode > 0)
+                    "Suply returned an error (HTTP ${failure.httpCode}). Try again in a moment, or contact your shipper if it keeps happening."
+                else
+                    "Unexpected error. Try again in a moment."
+            )
+            if (app.suply.echoair.BuildConfig.DEBUG && !failure.debugDetail.isNullOrBlank()) {
+                append("\n\n[debug] ").append(failure.debugDetail)
+            }
+        }
+    )
+    is CaptureViewModel.Failure.MalformedResponse -> Pair(
+        "Unexpected response from Suply",
+        "The server responded in a shape the app didn't recognise — usually means the backend was updated without the app catching up. Ask your shipper to check the deployment." +
+            if (app.suply.echoair.BuildConfig.DEBUG) "\n\n[debug] ${failure.detail}" else ""
     )
     is CaptureViewModel.Failure.NoShipmentForAwb -> Pair(
         "No matching shipment",
@@ -235,4 +282,44 @@ private fun DocumentCaptureView(onCaptured: (String) -> Unit) {
             Text("Capture")
         }
     }
+}
+
+
+@Composable
+private fun ManualEntryDialog(
+    mode: CaptureMode,
+    onDismiss: () -> Unit,
+    onSubmit: (String) -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+    val title = when (mode) {
+        CaptureMode.DOCUMENT -> "Enter AWB number"
+        CaptureMode.QR -> "Enter device ID"
+    }
+    val label = when (mode) {
+        CaptureMode.DOCUMENT -> "AWB (e.g. 057-12345678)"
+        CaptureMode.QR -> "Device ID, serial, or MAC"
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                label = { Text(label) },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSubmit(text) },
+                enabled = text.isNotBlank()
+            ) { Text("Continue") }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Cancel") }
+        }
+    )
 }

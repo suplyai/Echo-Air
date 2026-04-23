@@ -79,9 +79,16 @@ data class ShipmentListResponse(
 
 // ---------- Vision ----------
 
+/**
+ * The vision endpoint accepts either a base64-encoded document image OR a
+ * manually-typed AWB number (for the "Enter manually" fallback UX). One of
+ * the two must be non-null on any given request; nulls are omitted on the
+ * wire via the JSON config's explicitNulls = false.
+ */
 @Serializable
 data class VisionRequest(
-    @SerialName("image_base64") val imageBase64: String
+    @SerialName("image_base64") val imageBase64: String? = null,
+    @SerialName("awb_number") val awbNumber: String? = null
 )
 
 @Serializable
@@ -97,7 +104,10 @@ data class VisionResponse(
 @Serializable
 data class DeviceLookupResponse(
     @SerialName("device_id") val deviceId: String,
-    val mac: String? = null,
+    /** Backend renamed this from `mac` to `mac_address` alongside the devices[] rename. */
+    @SerialName("mac_address") val mac: String? = null,
+    val serial: String? = null,
+    val model: String? = null,
     @SerialName("hardware_type") val hardwareType: String? = null,
     val shipment: ShipmentDto? = null,
     val assigned: Boolean = false

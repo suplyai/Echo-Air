@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerializationException
 import retrofit2.HttpException
 import timber.log.Timber
 import java.io.IOException
@@ -35,8 +36,13 @@ class CaptureViewModel @Inject constructor(
         data object Unreachable : Failure
         /** TCP connected but the server took too long to respond. */
         data object Timeout : Failure
-        /** Server responded with 5xx or any unexpected non-2xx. */
-        data class Server(val httpCode: Int) : Failure
+        /** Server responded with 5xx or any unexpected non-2xx. Body carries debug
+         *  detail (exception class name) so field reports from pilots are actionable. */
+        data class Server(val httpCode: Int, val debugDetail: String? = null) : Failure
+        /** Server responded 2xx but the JSON shape didn't match the DTO — almost
+         *  always a backend/app schema drift. Surfaces the failing field so the
+         *  right team can jump on it. */
+        data class MalformedResponse(val detail: String) : Failure
         /** Vision AI extracted an AWB but the backend has no matching shipment. */
         data class NoShipmentForAwb(val awb: String) : Failure
         /** Vision AI couldn't read an AWB from the image. */
@@ -60,11 +66,22 @@ class CaptureViewModel @Inject constructor(
     val state: StateFlow<State> = _state.asStateFlow()
 
     fun identify(imageDataUrl: String) {
+        runIdentify { repo.identifyFromImage(imageDataUrl) }
+    }
+
+    /** Manual-entry counterpart to [identify]: the user typed an AWB instead of photographing one. */
+    fun identifyByAwb(awbNumber: String) {
+        val clean = awbNumber.trim()
+        if (clean.isBlank()) return
+        runIdentify { repo.identifyFromAwb(clean) }
+    }
+
+    private fun runIdentify(block: suspend () -> app.suply.echoair.data.api.VisionResponse) {
         if (_state.value.loading) return
         _state.value = State(loading = true)
         viewModelScope.launch {
             try {
-                val resp = repo.identifyFromImage(imageDataUrl)
+                val resp = block()
                 val shipment = resp.shipment
                 val awb = resp.awbNumber
                 _state.value = when {
@@ -86,6 +103,18 @@ class CaptureViewModel @Inject constructor(
             _state.value = State(failure = Failure.UnrecognisedQr)
             return
         }
+        runDeviceLookup(identifier)
+    }
+
+    /** Manual-entry counterpart to [lookupByQr]: user typed a device ID / MAC / serial. */
+    fun lookupByIdentifier(identifier: String) {
+        val clean = identifier.trim()
+        if (clean.isBlank()) return
+        runDeviceLookup(clean)
+    }
+
+    private fun runDeviceLookup(identifier: String) {
+        if (_state.value.loading) return
         _state.value = State(loading = true)
         viewModelScope.launch {
             try {
@@ -111,7 +140,8 @@ class CaptureViewModel @Inject constructor(
         is UnknownHostException, is ConnectException -> Failure.Unreachable
         is SocketTimeoutException -> Failure.Timeout
         is HttpException -> Failure.Server(t.code())
+        is SerializationException -> Failure.MalformedResponse(t.message ?: t::class.java.simpleName)
         is IOException -> Failure.Unreachable   // generic network failure
-        else -> Failure.Server(0)               // unknown; treat as a server-side problem
+        else -> Failure.Server(httpCode = 0, debugDetail = "${t::class.java.simpleName}: ${t.message}")
     }
 }
