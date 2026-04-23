@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import app.suply.echoair.ui.awb.ManualAwbScreen
 import app.suply.echoair.ui.capture.CaptureMode
 import app.suply.echoair.ui.capture.CaptureScreen
 import app.suply.echoair.ui.collection.CollectionScreen
@@ -48,6 +49,7 @@ class MainActivity : ComponentActivity() {
 object Routes {
     const val HOME = "home"
     const val CAPTURE = "capture/{mode}"
+    const val AWB_ENTRY = "awb_entry"
     const val COLLECTION = "collection/{shipmentId}"
     const val SETTINGS = "settings"
     const val WEB = "web?path={path}&title={title}"
@@ -65,18 +67,29 @@ private fun EchoAirNavHost() {
     NavHost(navController = nav, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeScreen(
-                onScanDocument = { nav.navigate(Routes.capture(CaptureMode.DOCUMENT)) },
-                onScanDeviceQr = { nav.navigate(Routes.capture(CaptureMode.QR)) },
-                onOpenSettings = { nav.navigate(Routes.SETTINGS) }
+                onScanQr = { nav.navigate(Routes.capture(CaptureMode.QR)) },
+                onEnterAwb = { nav.navigate(Routes.AWB_ENTRY) },
+                onOpenSettings = { nav.navigate(Routes.SETTINGS) },
+                onScanDocumentDebug = { nav.navigate(Routes.capture(CaptureMode.DOCUMENT)) }
             )
         }
         composable(Routes.CAPTURE) { entry ->
             val mode = entry.arguments?.getString("mode")
                 ?.let { runCatching { CaptureMode.valueOf(it) }.getOrNull() }
-                ?: CaptureMode.DOCUMENT
+                ?: CaptureMode.QR
             CaptureScreen(
                 mode = mode,
                 onCancel = { nav.popBackStack() },
+                onShipmentReady = { id ->
+                    nav.navigate(Routes.collection(id)) {
+                        popUpTo(Routes.HOME)
+                    }
+                }
+            )
+        }
+        composable(Routes.AWB_ENTRY) {
+            ManualAwbScreen(
+                onBack = { nav.popBackStack() },
                 onShipmentReady = { id ->
                     nav.navigate(Routes.collection(id)) {
                         popUpTo(Routes.HOME)
@@ -104,7 +117,7 @@ private fun EchoAirNavHost() {
                 onBridgeCommand = { cmd ->
                     when (cmd) {
                         is WebViewBridge.Command.OpenCapture ->
-                            nav.navigate(Routes.CAPTURE)
+                            nav.navigate(Routes.capture(CaptureMode.QR))
                         is WebViewBridge.Command.StartCollection ->
                             nav.navigate(Routes.collection(cmd.shipmentId))
                     }

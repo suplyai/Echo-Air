@@ -102,21 +102,19 @@ class CaptureViewModel @Inject constructor(
         }
     }
 
-    fun lookupByQr(payload: String) {
+    /**
+     * Route a scanned QR payload to the right endpoint based on its shape:
+     *   - Device QR (`MAC:…,SERIAL:…;`) → /api/devices/lookup
+     *   - Label QR encoding an AWB (`145-12863723`) → /api/vision/identify-shipment
+     *   - Anything else → [Failure.UnrecognisedQr]
+     */
+    fun onQrPayload(payload: String) {
         if (_state.value.loading) return
-        val identifier = QrPayloadParser.extractIdentifier(payload)
-        if (identifier.isNullOrBlank()) {
-            _state.value = State(failure = Failure.UnrecognisedQr)
-            return
+        when (val parsed = QrPayloadParser.parse(payload)) {
+            is QrPayloadParser.ParsedQr.Device -> runDeviceLookup(parsed.identifier)
+            is QrPayloadParser.ParsedQr.Awb -> runIdentify { repo.identifyFromAwb(parsed.awbNumber) }
+            QrPayloadParser.ParsedQr.Unknown -> _state.value = State(failure = Failure.UnrecognisedQr)
         }
-        runDeviceLookup(identifier)
-    }
-
-    /** Manual-entry counterpart to [lookupByQr]: user typed a device ID / MAC / serial. */
-    fun lookupByIdentifier(identifier: String) {
-        val clean = identifier.trim()
-        if (clean.isBlank()) return
-        runDeviceLookup(clean)
     }
 
     private fun runDeviceLookup(identifier: String) {

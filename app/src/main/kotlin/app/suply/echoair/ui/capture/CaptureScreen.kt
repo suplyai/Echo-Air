@@ -83,42 +83,7 @@ fun CaptureScreen(
                         onCaptured = { dataUrl -> vm.identify(dataUrl) }
                     )
                     CaptureMode.QR -> QrCaptureView(
-                        onScanned = { payload -> vm.lookupByQr(payload) }
-                    )
-                }
-
-                // Manual-entry fallback — real consignees will hit damaged
-                // QR stickers, poor lighting, denied camera, or just prefer
-                // typing. This button sits above any dialogs via zIndex.
-                var showManualEntry by remember { mutableStateOf(false) }
-                TextButton(
-                    onClick = { showManualEntry = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(bottom = 24.dp),
-                    colors = ButtonDefaults.textButtonColors(
-                        containerColor = Color.Black.copy(alpha = 0.55f),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text(
-                        when (mode) {
-                            CaptureMode.DOCUMENT -> "Enter AWB manually"
-                            CaptureMode.QR -> "Enter device ID manually"
-                        }
-                    )
-                }
-                if (showManualEntry) {
-                    ManualEntryDialog(
-                        mode = mode,
-                        onDismiss = { showManualEntry = false },
-                        onSubmit = { typed ->
-                            showManualEntry = false
-                            when (mode) {
-                                CaptureMode.DOCUMENT -> vm.identifyByAwb(typed)
-                                CaptureMode.QR -> vm.lookupByIdentifier(typed)
-                            }
-                        }
+                        onScanned = { payload -> vm.onQrPayload(payload) }
                     )
                 }
 
@@ -164,7 +129,7 @@ fun CaptureScreen(
  * every failure landing in a single "Couldn't identify shipment" dialog.
  */
 @Composable
-private fun failureCopy(failure: CaptureViewModel.Failure): Pair<String, String> = when (failure) {
+internal fun failureCopy(failure: CaptureViewModel.Failure): Pair<String, String> = when (failure) {
     CaptureViewModel.Failure.Unreachable -> Pair(
         "Can't reach Suply servers",
         "Check your internet connection, then try again."
@@ -282,44 +247,4 @@ private fun DocumentCaptureView(onCaptured: (String) -> Unit) {
             Text("Capture")
         }
     }
-}
-
-
-@Composable
-private fun ManualEntryDialog(
-    mode: CaptureMode,
-    onDismiss: () -> Unit,
-    onSubmit: (String) -> Unit
-) {
-    var text by remember { mutableStateOf("") }
-    val title = when (mode) {
-        CaptureMode.DOCUMENT -> "Enter AWB number"
-        CaptureMode.QR -> "Enter device ID"
-    }
-    val label = when (mode) {
-        CaptureMode.DOCUMENT -> "AWB (e.g. 057-12345678)"
-        CaptureMode.QR -> "Device ID, serial, or MAC"
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(title) },
-        text = {
-            OutlinedTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = { Text(label) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onSubmit(text) },
-                enabled = text.isNotBlank()
-            ) { Text("Continue") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
-        }
-    )
 }

@@ -117,9 +117,42 @@ fun QrCaptureView(onScanned: (payload: String) -> Unit) {
 }
 
 object QrPayloadParser {
-    /** Returns the MAC or serial from a payload like `MAC:AA..,SERIAL:633640;`. */
-    fun extractIdentifier(payload: String): String? {
+
+    /** Possible interpretations of a scanned QR payload. */
+    sealed interface ParsedQr {
+        /** Device QR: `MAC:BC57…,SERIAL:633640;` — drives `/api/devices/lookup`. */
+        data class Device(val identifier: String) : ParsedQr
+        /** Label / paperwork QR that encodes an AWB — drives `/api/vision/identify-shipment`. */
+        data class Awb(val awbNumber: String) : ParsedQr
+        /** Payload we can't route. */
+        data object Unknown : ParsedQr
+    }
+
+    fun parse(payload: String): ParsedQr {
         val clean = payload.trim().trimEnd(';')
+
+        // Device QR form: key/value pairs joined by commas, "MAC:…,SERIAL:…;".
+        if (clean.contains(":")) {
+            val device = extractDeviceIdentifier(clean)
+            if (device != null) return ParsedQr.Device(device)
+        }
+
+        // AWB form: 11 digits in the payload, possibly with a dash/space.
+        // We accept any QR whose digits boil down to a valid IATA AWB so we
+        // can accommodate both "145-12863723" printed labels and longer
+        // payloads that happen to encode an AWB as a sub-token.
+        app.suply.echoair.domain.Awb.canonicalise(clean)
+            ?.takeIf(app.suply.echoair.domain.Awb::isValid)
+            ?.let { return ParsedQr.Awb(it) }
+
+        return ParsedQr.Unknown
+    }
+
+    /** Back-compat shim for any code path still calling this — prefer [parse]. */
+    fun extractIdentifier(payload: String): String? =
+        (parse(payload) as? ParsedQr.Device)?.identifier
+
+    private fun extractDeviceIdentifier(clean: String): String? {
         val parts = clean.split(",").mapNotNull {
             val kv = it.split(":", limit = 2)
             if (kv.size == 2) kv[0].trim().uppercase() to kv[1].trim() else null
