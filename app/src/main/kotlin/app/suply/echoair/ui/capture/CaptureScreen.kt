@@ -193,8 +193,8 @@ private fun failureCopy(failure: CaptureViewModel.Failure): Pair<String, String>
             if (app.suply.echoair.BuildConfig.DEBUG) "\n\n[debug] ${failure.detail}" else ""
     )
     is CaptureViewModel.Failure.NoShipmentForAwb -> Pair(
-        "No matching shipment",
-        "AWB ${failure.awb} was read successfully but no matching shipment was found. Check the number or contact your shipper."
+        "No active shipment found",
+        "No active shipment was found for AWB ${failure.awb}. Double-check the number, or if the shipment has already been completed, contact your shipper."
     )
     CaptureViewModel.Failure.NoAwbInImage -> Pair(
         "Couldn't read the AWB",
