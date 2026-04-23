@@ -15,8 +15,8 @@ android {
         applicationId = "app.suply.echoair"
         minSdk = 30
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.2.1"
+        versionCode = 6
+        versionName = "0.2.2"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -24,7 +24,7 @@ android {
         buildConfigField(
             "String",
             "API_BASE_URL",
-            "\"${(project.findProperty("ECHO_AIR_API_BASE_URL") as String?) ?: "https://api.suply.app/"}\""
+            "\"${(project.findProperty("ECHO_AIR_API_BASE_URL") as String?) ?: "https://suply.app/"}\""
         )
         buildConfigField(
             "String",
