@@ -86,8 +86,14 @@ class CaptureViewModel @Inject constructor(
                 val awb = resp.awbNumber
                 _state.value = when {
                     shipment != null -> State(shipment = shipment, confidence = resp.confidence)
-                    awb != null -> State(failure = Failure.NoShipmentForAwb(awb))
-                    else -> State(failure = Failure.NoAwbInImage)
+                    awb != null -> {
+                        Timber.i("Vision response: awb_number=%s, shipment=null → backend says no active shipment for this AWB", awb)
+                        State(failure = Failure.NoShipmentForAwb(awb))
+                    }
+                    else -> {
+                        Timber.i("Vision response: awb_number=null, shipment=null → no AWB readable in image")
+                        State(failure = Failure.NoAwbInImage)
+                    }
                 }
             } catch (t: Throwable) {
                 Timber.w(t, "identify failed")
@@ -119,9 +125,12 @@ class CaptureViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val shipment = repo.lookupDevice(identifier)
-                _state.value =
-                    if (shipment != null) State(shipment = shipment, confidence = "high")
-                    else State(failure = Failure.DeviceNotAssigned)
+                _state.value = if (shipment != null) {
+                    State(shipment = shipment, confidence = "high")
+                } else {
+                    Timber.i("Device lookup response: identifier=%s, 2xx with shipment=null → backend says device not on an active shipment", identifier)
+                    State(failure = Failure.DeviceNotAssigned)
+                }
             } catch (t: HttpException) {
                 if (t.code() == 404) _state.value = State(failure = Failure.DeviceNotRegistered)
                 else _state.value = State(failure = classify(t))
