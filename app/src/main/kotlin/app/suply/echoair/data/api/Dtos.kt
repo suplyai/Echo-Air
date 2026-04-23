@@ -65,8 +65,13 @@ data class ShipmentDeviceDto(
     @SerialName("echo_scanned") val echoScanned: Boolean? = null,
     /** 1-based ordering across scans on the shipment. */
     @SerialName("scan_sequence") val scanSequence: Int? = null,
-    /** Timestamp of the last successful scan (unix seconds). */
-    @SerialName("scanned_at") val scannedAt: Long? = null,
+    /**
+     * ISO-8601 instant of the last successful scan (e.g. "2026-04-23T15:41:29.900Z").
+     * Kept as a string on the wire rather than epoch millis because the backend
+     * emits ISO-8601; parse with [java.time.Instant.parse] on the app side when
+     * an epoch representation is needed (see ShipmentRepository.cache).
+     */
+    @SerialName("scanned_at") val scannedAt: String? = null,
     /** Inferred position in the cargo (pallet / stack / etc.) — free-form. */
     @SerialName("inferred_position") val inferredPosition: String? = null
 )

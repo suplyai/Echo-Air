@@ -156,9 +156,23 @@ class ShipmentRepository @Inject constructor(
                     mac = it.mac?.uppercase()?.replace(":", ""),
                     shipmentId = s.id,
                     status = it.status,
-                    lastSeenAt = it.scannedAt      // backend renamed from last_seen_at
+                    lastSeenAt = parseIsoEpochMillis(it.scannedAt)
                 )
             }
         )
+    }
+
+    /**
+     * Convert an ISO-8601 instant (e.g. "2026-04-23T15:41:29.900Z") to epoch
+     * millis for the Long-typed Room column. Returns null on missing or
+     * malformed input rather than throwing — the backend is allowed to emit
+     * future date formats we don't yet parse, and we'd rather lose a
+     * freshness timestamp than crash the whole cache write.
+     */
+    private fun parseIsoEpochMillis(iso: String?): Long? {
+        val s = iso?.takeIf { it.isNotBlank() } ?: return null
+        return runCatching { java.time.Instant.parse(s).toEpochMilli() }
+            .onFailure { Timber.w(it, "Unparseable scanned_at: %s", s) }
+            .getOrNull()
     }
 }
