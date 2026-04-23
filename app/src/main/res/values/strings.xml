@@ -6,27 +6,19 @@
     <string name="home_cta">Receiving a shipment?</string>
     <string name="home_cta_sub">Point your camera at a shipping document.</string>
     <string name="home_scan_qr">Scan device QR instead</string>
-    <string name="home_manual">Enter AWB manually</string>
-    <string name="home_active_shipments">Active shipments</string>
-    <string name="home_history">History</string>
     <string name="home_settings">Settings</string>
-
-    <string name="login_title">Sign in to Suply</string>
-    <string name="login_email">Email</string>
-    <string name="login_password">Password</string>
-    <string name="login_submit">Sign in</string>
 
     <string name="capture_confirm_title">Confirm shipment</string>
     <string name="capture_start_collecting">Start collecting</string>
     <string name="capture_cancel">Cancel</string>
     <string name="capture_retake">Retake</string>
-    <string name="capture_no_match">AWB extracted but no matching shipment. Check the number or contact your team.</string>
-    <string name="capture_no_awb">Couldn\'t read an AWB from this image. Try another angle or enter manually.</string>
-    <string name="capture_offline">Vision AI needs a network connection. Try scanning a device QR code instead.</string>
+    <string name="capture_no_match">AWB extracted but no matching shipment. Check the number or contact your shipper.</string>
+    <string name="capture_no_awb">Couldn\'t read an AWB from this image. Try another angle or scan the device QR.</string>
+    <string name="capture_offline">Network connection needed. Try scanning the device QR code instead.</string>
 
     <string name="collection_collected">Collected</string>
     <string name="collection_of">of</string>
-    <string name="collection_finish">All devices collected — finish shipment</string>
+    <string name="collection_finish">All devices collected — finish</string>
     <string name="collection_close_partial">Close shipment without remaining devices</string>
     <string name="collection_searching">Searching</string>
     <string name="collection_in_range">In range</string>
@@ -36,26 +28,14 @@
     <string name="collection_error">Connection failed</string>
     <string name="collection_retry">Retry</string>
 
-    <string name="completion_title">Shipment complete</string>
-    <string name="completion_view_pack">View attestation pack</string>
-    <string name="completion_view_timeline">View timeline</string>
-    <string name="completion_close">Close shipment</string>
-
     <string name="settings_title">Settings</string>
-    <string name="settings_ambient">Ambient scanning</string>
-    <string name="settings_ambient_desc">Passively collect from any assigned device in range, even when the app is in the background.</string>
     <string name="settings_battery_optimisation">Disable battery optimisation</string>
-    <string name="settings_logout">Sign out</string>
 
     <string name="notif_channel_collection">Active collection</string>
-    <string name="notif_channel_ambient">Ambient scanning</string>
     <string name="notif_channel_sync">Data sync</string>
     <string name="notif_collection_title">Collecting shipment</string>
-    <string name="notif_ambient_title">Echo Air is scanning</string>
-    <string name="notif_ambient_body">Detecting nearby assigned devices</string>
 
     <string name="permission_ble_rationale">Echo Air needs Bluetooth permission to collect data from shipment loggers.</string>
     <string name="permission_camera_rationale">Echo Air needs camera access to identify shipments from their documents.</string>
     <string name="permission_location_rationale">Android requires location permission before it will scan for Bluetooth devices. Some phone manufacturers (Honor, Huawei, Xiaomi) require this even on newer Android versions. Echo Air does not read or use your location itself.</string>
-    <string name="permission_notifications_rationale">Echo Air shows a persistent notification while ambient scanning is active.</string>
 </resources>

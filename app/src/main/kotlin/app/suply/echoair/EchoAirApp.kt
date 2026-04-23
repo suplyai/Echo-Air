@@ -39,13 +39,6 @@ class EchoAirApp : Application(), Configuration.Provider {
         )
         nm.createNotificationChannel(
             NotificationChannel(
-                CHANNEL_AMBIENT,
-                getString(R.string.notif_channel_ambient),
-                NotificationManager.IMPORTANCE_MIN
-            )
-        )
-        nm.createNotificationChannel(
-            NotificationChannel(
                 CHANNEL_SYNC,
                 getString(R.string.notif_channel_sync),
                 NotificationManager.IMPORTANCE_MIN
@@ -55,7 +48,6 @@ class EchoAirApp : Application(), Configuration.Provider {
 
     companion object {
         const val CHANNEL_COLLECTION = "echoair.collection"
-        const val CHANNEL_AMBIENT = "echoair.ambient"
         const val CHANNEL_SYNC = "echoair.sync"
     }
 }

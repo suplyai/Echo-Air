@@ -5,8 +5,6 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import kotlinx.coroutines.flow.Flow
-
 @Dao
 interface ShipmentDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -21,8 +19,6 @@ interface ShipmentDao {
     @Query("SELECT * FROM shipments WHERE awbNumber = :awb")
     suspend fun byAwb(awb: String): CachedShipment?
 
-    @Query("SELECT * FROM shipments WHERE status = 'in_transit'")
-    fun activeShipments(): Flow<List<CachedShipment>>
 }
 
 @Dao
@@ -32,9 +28,6 @@ interface DeviceDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(devices: List<CachedDevice>)
-
-    @Query("SELECT * FROM devices WHERE shipmentId = :shipmentId")
-    fun forShipment(shipmentId: String): Flow<List<CachedDevice>>
 
     @Query("SELECT * FROM devices WHERE shipmentId = :shipmentId")
     suspend fun forShipmentOnce(shipmentId: String): List<CachedDevice>
@@ -88,7 +81,4 @@ interface PendingUploadDao {
 
     @Query("DELETE FROM pending_uploads WHERE id = :id")
     suspend fun delete(id: Long)
-
-    @Query("SELECT COUNT(*) FROM pending_uploads")
-    fun pendingCount(): Flow<Int>
 }

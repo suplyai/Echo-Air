@@ -32,9 +32,7 @@ class CollectionViewModel @Inject constructor(
         viewModelScope.launch {
             val s = repo.getShipment(shipmentId) ?: return@launch
             _shipment.value = s
-            val expected = repo.devicesFor(shipmentId)
-            // Snapshot the roster from cache for the orchestrator.
-            val roster = repo.activeRosterDeviceIdsFor(shipmentId)
+            val roster = repo.devicesForShipment(shipmentId)
             orchestrator.start(
                 shipmentId,
                 roster.map { CollectionOrchestrator.ExpectedDevice(it.deviceId, it.mac) }

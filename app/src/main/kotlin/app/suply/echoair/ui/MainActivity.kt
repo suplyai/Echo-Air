@@ -8,18 +8,28 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import app.suply.echoair.ui.capture.CaptureScreen
 import app.suply.echoair.ui.collection.CollectionScreen
 import app.suply.echoair.ui.home.HomeScreen
-import app.suply.echoair.ui.login.LoginScreen
 import app.suply.echoair.ui.settings.SettingsScreen
 import app.suply.echoair.ui.web.WebScreen
+import app.suply.echoair.ui.web.WebViewBridge
 import dagger.hilt.android.AndroidEntryPoint
 
+/**
+ * The Echo Air app is fully stateless. There is no login flow — the device
+ * is the credential. A device's MAC and serial are physically printed on it
+ * and pre-registered against a shipment by the shipper on the Suply web
+ * platform before it leaves origin. By the time the consignee scans it at
+ * destination, everything about it (owning org, target shipment, cold-chain
+ * profile) is already established server-side; the phone is just a transport
+ * layer.
+ *
+ * See the project README / brief for the full rationale.
+ */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -35,7 +45,6 @@ class MainActivity : ComponentActivity() {
 }
 
 object Routes {
-    const val LOGIN = "login"
     const val HOME = "home"
     const val CAPTURE = "capture"
     const val COLLECTION = "collection/{shipmentId}"
@@ -50,23 +59,12 @@ object Routes {
 @Composable
 private fun EchoAirNavHost() {
     val nav = rememberNavController()
-    val gate: GateViewModel = hiltViewModel()
-    val start = if (gate.isAuthenticated()) Routes.HOME else Routes.LOGIN
 
-    NavHost(navController = nav, startDestination = start) {
-        composable(Routes.LOGIN) {
-            LoginScreen(onAuthenticated = {
-                nav.navigate(Routes.HOME) {
-                    popUpTo(Routes.LOGIN) { inclusive = true }
-                }
-            })
-        }
+    NavHost(navController = nav, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeScreen(
                 onStartCapture = { nav.navigate(Routes.CAPTURE) },
-                onOpenSettings = { nav.navigate(Routes.SETTINGS) },
-                onOpenShipment = { id -> nav.navigate(Routes.collection(id)) },
-                onOpenWeb = { path, title -> nav.navigate(Routes.web(path, title)) }
+                onOpenSettings = { nav.navigate(Routes.SETTINGS) }
             )
         }
         composable(Routes.CAPTURE) {
@@ -83,18 +81,11 @@ private fun EchoAirNavHost() {
             val id = entry.arguments?.getString("shipmentId") ?: return@composable
             CollectionScreen(
                 shipmentId = id,
-                onClose = {
-                    nav.popBackStack(route = Routes.HOME, inclusive = false)
-                },
-                onOpenWeb = { path, title -> nav.navigate(Routes.web(path, title)) }
+                onClose = { nav.popBackStack(route = Routes.HOME, inclusive = false) }
             )
         }
         composable(Routes.SETTINGS) {
-            SettingsScreen(onBack = { nav.popBackStack() }, onLoggedOut = {
-                nav.navigate(Routes.LOGIN) {
-                    popUpTo(0)
-                }
-            })
+            SettingsScreen(onBack = { nav.popBackStack() })
         }
         composable(Routes.WEB) { entry ->
             val path = entry.arguments?.getString("path").orEmpty()
@@ -105,12 +96,10 @@ private fun EchoAirNavHost() {
                 onBack = { nav.popBackStack() },
                 onBridgeCommand = { cmd ->
                     when (cmd) {
-                        is app.suply.echoair.ui.web.WebViewBridge.Command.OpenCapture ->
+                        is WebViewBridge.Command.OpenCapture ->
                             nav.navigate(Routes.CAPTURE)
-                        is app.suply.echoair.ui.web.WebViewBridge.Command.StartCollection ->
+                        is WebViewBridge.Command.StartCollection ->
                             nav.navigate(Routes.collection(cmd.shipmentId))
-                        is app.suply.echoair.ui.web.WebViewBridge.Command.Logout ->
-                            nav.navigate(Routes.LOGIN) { popUpTo(0) }
                     }
                 }
             )

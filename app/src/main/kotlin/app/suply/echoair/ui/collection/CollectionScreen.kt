@@ -48,7 +48,6 @@ import app.suply.echoair.ble.CollectionOrchestrator.DeviceState
 fun CollectionScreen(
     shipmentId: String,
     onClose: () -> Unit,
-    onOpenWeb: (path: String, title: String) -> Unit,
     vm: CollectionViewModel = hiltViewModel()
 ) {
     val state by vm.state.collectAsState()
@@ -94,9 +93,7 @@ fun CollectionScreen(
                 collected = state.collectedCount,
                 total = state.totalCount,
                 allScanned = state.allScanned || (state.totalCount > 0 && state.collectedCount == state.totalCount),
-                onFinish = {
-                    onOpenWeb("/mobile/shipments/$shipmentId/complete", "Complete")
-                },
+                onFinish = onClose,
                 onClosePartial = { confirmClose = true }
             )
         }

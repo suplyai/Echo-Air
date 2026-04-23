@@ -19,7 +19,6 @@ import app.suply.echoair.data.db.ShipmentDao
 import app.suply.echoair.data.db.TemperatureRecord
 import app.suply.echoair.work.UploadWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.json.Json
 import timber.log.Timber
 import javax.inject.Inject
@@ -41,11 +40,6 @@ class ShipmentRepository @Inject constructor(
     private val json: Json
 ) {
 
-    fun activeShipments(): Flow<List<CachedShipment>> = shipmentDao.activeShipments()
-
-    fun devicesFor(shipmentId: String): Flow<List<CachedDevice>> =
-        deviceDao.forShipment(shipmentId)
-
     suspend fun identifyFromImage(imageDataUrl: String): VisionResponse {
         val resp = api.identifyShipment(VisionRequest(imageBase64 = imageDataUrl))
         resp.shipment?.let { cache(it) }
@@ -60,12 +54,6 @@ class ShipmentRepository @Inject constructor(
 
     suspend fun searchByAwb(query: String): List<ShipmentDto> {
         val resp = api.listShipments(status = "in_transit", search = query)
-        resp.shipments.forEach { cache(it) }
-        return resp.shipments
-    }
-
-    suspend fun refreshActiveRoster(): List<ShipmentDto> {
-        val resp = api.listShipments(status = "in_transit")
         resp.shipments.forEach { cache(it) }
         return resp.shipments
     }
@@ -133,14 +121,8 @@ class ShipmentRepository @Inject constructor(
         }
     }
 
-    suspend fun activeRosterDeviceIds(): List<String> = deviceDao.activeRosterDeviceIds()
-    suspend fun activeRosterMacs(): List<String> = deviceDao.activeRosterMacs()
-
-    suspend fun activeRosterDeviceIdsFor(shipmentId: String): List<CachedDevice> =
+    suspend fun devicesForShipment(shipmentId: String): List<CachedDevice> =
         deviceDao.forShipmentOnce(shipmentId)
-
-    suspend fun deviceByMac(mac: String): CachedDevice? = deviceDao.byMac(mac)
-    suspend fun deviceByDeviceId(id: String): CachedDevice? = deviceDao.byDeviceId(id)
 
     private suspend fun cache(s: ShipmentDto) {
         shipmentDao.upsert(

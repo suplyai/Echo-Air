@@ -20,7 +20,6 @@ class WebViewBridge @Inject constructor() {
     sealed interface Command {
         data object OpenCapture : Command
         data class StartCollection(val shipmentId: String) : Command
-        data object Logout : Command
     }
 
     private val _commands = MutableSharedFlow<Command>(
@@ -39,11 +38,5 @@ class WebViewBridge @Inject constructor() {
     fun startCollection(shipmentId: String) {
         Timber.d("JS -> startCollection($shipmentId)")
         _commands.tryEmit(Command.StartCollection(shipmentId))
-    }
-
-    @JavascriptInterface
-    fun logout() {
-        Timber.d("JS -> logout")
-        _commands.tryEmit(Command.Logout)
     }
 }
