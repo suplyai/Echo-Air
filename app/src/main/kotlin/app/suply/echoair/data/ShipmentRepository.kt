@@ -145,7 +145,7 @@ class ShipmentRepository @Inject constructor(
                     mac = it.mac?.uppercase()?.replace(":", ""),
                     shipmentId = s.id,
                     status = it.status,
-                    lastSeenAt = it.lastSeenAt
+                    lastSeenAt = it.scannedAt      // backend renamed from last_seen_at
                 )
             }
         )

@@ -50,9 +50,25 @@ data class ShipmentDto(
 @Serializable
 data class ShipmentDeviceDto(
     @SerialName("device_id") val deviceId: String,
-    val mac: String? = null,
+    /**
+     * MAC address in colon-formatted form ("BC:57:29:1C:D6:A6"). Backend
+     * field is `mac_address`; older deployments may have sent `mac` — keep
+     * the @SerialName pinned to the canonical name to avoid accidental
+     * field-rename breakage.
+     */
+    @SerialName("mac_address") val mac: String? = null,
+    /** KKM serial. For Echo Air devices this is the same value as device_id. */
+    val serial: String? = null,
+    val model: String? = null,
     val status: String,
-    @SerialName("last_seen_at") val lastSeenAt: Long? = null
+    /** True once the destination consignee has scanned this device. */
+    @SerialName("echo_scanned") val echoScanned: Boolean? = null,
+    /** 1-based ordering across scans on the shipment. */
+    @SerialName("scan_sequence") val scanSequence: Int? = null,
+    /** Timestamp of the last successful scan (unix seconds). */
+    @SerialName("scanned_at") val scannedAt: Long? = null,
+    /** Inferred position in the cargo (pallet / stack / etc.) — free-form. */
+    @SerialName("inferred_position") val inferredPosition: String? = null
 )
 
 @Serializable
