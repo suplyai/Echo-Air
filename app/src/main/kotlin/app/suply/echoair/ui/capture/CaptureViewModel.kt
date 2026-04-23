@@ -9,7 +9,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import retrofit2.HttpException
 import timber.log.Timber
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import javax.inject.Inject
 
 @HiltViewModel
@@ -17,11 +22,38 @@ class CaptureViewModel @Inject constructor(
     private val repo: ShipmentRepository
 ) : ViewModel() {
 
+    /**
+     * Distinct failure classes the capture flow can surface. Each maps to a
+     * different dialog title + body in [CaptureScreen] so a consignee can
+     * tell at a glance whether to retry, fix the document, contact their
+     * shipper, or wait out a network blip. Previously everything landed in
+     * a single "Couldn't identify shipment" dialog which sent users down
+     * the wrong diagnostic path on network outages.
+     */
+    sealed interface Failure {
+        /** TCP never connected — no network, wrong host, captive portal, etc. */
+        data object Unreachable : Failure
+        /** TCP connected but the server took too long to respond. */
+        data object Timeout : Failure
+        /** Server responded with 5xx or any unexpected non-2xx. */
+        data class Server(val httpCode: Int) : Failure
+        /** Vision AI extracted an AWB but the backend has no matching shipment. */
+        data class NoShipmentForAwb(val awb: String) : Failure
+        /** Vision AI couldn't read an AWB from the image. */
+        data object NoAwbInImage : Failure
+        /** QR payload scanned but the backend has no record of the device (404). */
+        data object DeviceNotRegistered : Failure
+        /** Device exists in the backend but isn't on any active shipment. */
+        data object DeviceNotAssigned : Failure
+        /** QR payload didn't parse as a MAC:…,SERIAL:…; tuple. */
+        data object UnrecognisedQr : Failure
+    }
+
     data class State(
         val loading: Boolean = false,
         val shipment: ShipmentDto? = null,
         val confidence: String? = null,
-        val error: String? = null
+        val failure: Failure? = null
     )
 
     private val _state = MutableStateFlow(State())
@@ -34,16 +66,15 @@ class CaptureViewModel @Inject constructor(
             try {
                 val resp = repo.identifyFromImage(imageDataUrl)
                 val shipment = resp.shipment
-                when {
-                    shipment != null -> _state.value = State(shipment = shipment, confidence = resp.confidence)
-                    resp.awbNumber != null -> _state.value = State(
-                        error = "AWB ${resp.awbNumber} extracted but no matching shipment in your organisation. Check the number or contact your team."
-                    )
-                    else -> _state.value = State(error = "Couldn\'t read an AWB from this image. Try another angle or enter manually.")
+                val awb = resp.awbNumber
+                _state.value = when {
+                    shipment != null -> State(shipment = shipment, confidence = resp.confidence)
+                    awb != null -> State(failure = Failure.NoShipmentForAwb(awb))
+                    else -> State(failure = Failure.NoAwbInImage)
                 }
             } catch (t: Throwable) {
                 Timber.w(t, "identify failed")
-                _state.value = State(error = t.message ?: "Vision AI failed. Check your connection.")
+                _state.value = State(failure = classify(t))
             }
         }
     }
@@ -52,26 +83,35 @@ class CaptureViewModel @Inject constructor(
         if (_state.value.loading) return
         val identifier = QrPayloadParser.extractIdentifier(payload)
         if (identifier.isNullOrBlank()) {
-            _state.value = State(error = "Unrecognised QR code.")
+            _state.value = State(failure = Failure.UnrecognisedQr)
             return
         }
         _state.value = State(loading = true)
         viewModelScope.launch {
             try {
                 val shipment = repo.lookupDevice(identifier)
-                if (shipment != null) {
-                    _state.value = State(shipment = shipment, confidence = "high")
-                } else {
-                    _state.value = State(error = "This device isn\'t assigned to an active shipment.")
-                }
+                _state.value =
+                    if (shipment != null) State(shipment = shipment, confidence = "high")
+                    else State(failure = Failure.DeviceNotAssigned)
+            } catch (t: HttpException) {
+                if (t.code() == 404) _state.value = State(failure = Failure.DeviceNotRegistered)
+                else _state.value = State(failure = classify(t))
             } catch (t: Throwable) {
                 Timber.w(t, "lookup failed")
-                _state.value = State(error = t.message ?: "Device lookup failed.")
+                _state.value = State(failure = classify(t))
             }
         }
     }
 
     fun clear() {
         _state.value = State()
+    }
+
+    private fun classify(t: Throwable): Failure = when (t) {
+        is UnknownHostException, is ConnectException -> Failure.Unreachable
+        is SocketTimeoutException -> Failure.Timeout
+        is HttpException -> Failure.Server(t.code())
+        is IOException -> Failure.Unreachable   // generic network failure
+        else -> Failure.Server(0)               // unknown; treat as a server-side problem
     }
 }

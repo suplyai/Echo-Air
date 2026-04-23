@@ -132,17 +132,63 @@ fun CaptureScreen(
                     )
                 }
 
-                state.error?.let { err ->
+                state.failure?.let { failure ->
+                    val (title, body) = failureCopy(failure)
                     AlertDialog(
                         onDismissRequest = { vm.clear() },
                         confirmButton = { TextButton(onClick = { vm.clear() }) { Text("OK") } },
-                        title = { Text("Couldn\'t identify shipment") },
-                        text = { Text(err) }
+                        title = { Text(title) },
+                        text = { Text(body) }
                     )
                 }
             }
         }
     }
+}
+
+/**
+ * Maps [CaptureViewModel.Failure] to dialog copy. Each failure class gets a
+ * distinct title + body so a consignee can tell whether to retry, fix the
+ * document, contact their shipper, or wait out a network blip — rather than
+ * every failure landing in a single "Couldn't identify shipment" dialog.
+ */
+@Composable
+private fun failureCopy(failure: CaptureViewModel.Failure): Pair<String, String> = when (failure) {
+    CaptureViewModel.Failure.Unreachable -> Pair(
+        "Can't reach Suply servers",
+        "Check your internet connection, then try again."
+    )
+    CaptureViewModel.Failure.Timeout -> Pair(
+        "Suply servers aren't responding",
+        "This usually clears up after a few seconds. Try again."
+    )
+    is CaptureViewModel.Failure.Server -> Pair(
+        "Something went wrong",
+        if (failure.httpCode > 0)
+            "Suply returned an error (HTTP ${failure.httpCode}). Try again in a moment, or contact your shipper if it keeps happening."
+        else
+            "Unexpected error. Try again in a moment."
+    )
+    is CaptureViewModel.Failure.NoShipmentForAwb -> Pair(
+        "No matching shipment",
+        "AWB ${failure.awb} was read successfully but no matching shipment was found. Check the number or contact your shipper."
+    )
+    CaptureViewModel.Failure.NoAwbInImage -> Pair(
+        "Couldn't read the AWB",
+        "Try another angle or better lighting, or scan the device QR code instead."
+    )
+    CaptureViewModel.Failure.DeviceNotRegistered -> Pair(
+        "Device not registered",
+        "This Echo Air device isn't registered in the system. Contact your shipper."
+    )
+    CaptureViewModel.Failure.DeviceNotAssigned -> Pair(
+        "Device not on an active shipment",
+        "This device is registered but isn't currently assigned to an active shipment. Contact your shipper."
+    )
+    CaptureViewModel.Failure.UnrecognisedQr -> Pair(
+        "Unrecognised QR code",
+        "Make sure you're scanning the QR label printed on an Echo Air device."
+    )
 }
 
 @Composable
