@@ -66,14 +66,9 @@ fun ManualAwbScreen(
     }
     LaunchedEffect(Unit) { prefixFocus.requestFocus() }
 
-    // Success → bounce out to Collection.
-    state.shipment?.let { dto ->
-        LaunchedEffect(dto.id) {
-            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-            onShipmentReady(dto.id)
-            vm.clear()
-        }
-    }
+    // Success → show the same confirmation sheet the QR path uses, so
+    // the "trust moment" is consistent across entry paths. Haptic fires
+    // inside the sheet's Start scanning button.
 
     Scaffold(
         topBar = {
@@ -191,6 +186,18 @@ fun ManualAwbScreen(
                 confirmButton = { TextButton(onClick = { vm.clear() }) { Text("OK") } },
                 title = { Text(title) },
                 text = { Text(body) }
+            )
+        }
+
+        state.shipment?.let { dto ->
+            app.suply.echoair.ui.capture.ConfirmShipmentSheet(
+                shipment = dto,
+                confidence = state.confidence,
+                onConfirm = {
+                    onShipmentReady(dto.id)
+                    vm.clear()
+                },
+                onCancel = { vm.clear() }
             )
         }
     }

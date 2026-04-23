@@ -27,6 +27,16 @@ data class UserDto(
 @Serializable
 data class CargoProfileDto(
     val name: String? = null,
+    /**
+     * High-level commodity category used to pick an icon + accent colour in
+     * the confirmation sheet (e.g. "flowers", "seafood", "pharma", "fruit",
+     * "meat", "dairy"). Optional: if absent, the sheet falls back to a
+     * generic cargo icon. Backend already stores this in
+     * `master_commodity_profiles.profile_data` but may not expose it on
+     * the shipment lookup response yet — ping the Suply engineer if
+     * production responses are missing it.
+     */
+    val category: String? = null,
     @SerialName("min_temp") val minTemp: Double? = null,
     @SerialName("max_temp") val maxTemp: Double? = null,
     @SerialName("min_humidity") val minHumidity: Double? = null,
@@ -40,7 +50,12 @@ data class ShipmentDto(
     val id: String,
     @SerialName("airway_bill_number") val airwayBillNumber: String,
     @SerialName("air_origin_iata") val airOriginIata: String? = null,
+    /** City name for the origin airport, e.g. "Lima" for LIM. Optional;
+     *  the confirmation sheet shows code alone when the city is missing. */
+    @SerialName("air_origin_city") val airOriginCity: String? = null,
     @SerialName("air_dest_iata") val airDestIata: String? = null,
+    /** City name for the destination airport, e.g. "Amsterdam" for AMS. */
+    @SerialName("air_dest_city") val airDestCity: String? = null,
     @SerialName("transport_mode") val transportMode: String? = null,
     val status: String,
     @SerialName("cargo_profile") val cargoProfile: CargoProfileDto? = null,

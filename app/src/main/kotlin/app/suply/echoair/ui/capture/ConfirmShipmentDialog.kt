@@ -1,69 +1,231 @@
 package app.suply.echoair.ui.capture
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Flight
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import app.suply.echoair.R
+import androidx.compose.ui.unit.sp
 import app.suply.echoair.data.api.ShipmentDto
 
+/**
+ * Bottom-sheet identity confirmation for a resolved shipment.
+ *
+ * This is the "trust moment" — the app has taken the user's input (QR, vision
+ * AI, or typed AWB), resolved it against the backend, and is showing enough
+ * identity data back that the consignee can say "yes, this is my shipment"
+ * with confidence. If they typed the wrong AWB or pasted the wrong barcode,
+ * this is where they catch it before committing to a scan.
+ *
+ * Hero: commodity name + category-derived icon / accent colour.
+ * Supporting: AWB, transport mode badge, origin→destination route, device
+ * count. Primary CTA "Start scanning" fires a haptic tick and proceeds.
+ *
+ * Kept in ConfirmShipmentDialog.kt despite now being a sheet — file name
+ * preserves the import path for minimal churn across call sites.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ConfirmShipmentSheet(
+    shipment: ShipmentDto,
+    confidence: String?,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val haptics = LocalHapticFeedback.current
+    val accent = CommodityAccent.forCategory(shipment.cargoProfile?.category)
+
+    ModalBottomSheet(
+        onDismissRequest = onCancel,
+        sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // Low-confidence OCR warning — only shows on vision-AI path with low
+            // confidence; QR and manual AWB paths pass confidence = "high" or null.
+            if (confidence == "low" || confidence == "medium") {
+                Text(
+                    text = "Double-check this is your shipment",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+
+            // Hero
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(56.dp)
+                        .clip(CircleShape)
+                        .background(accent.colour.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = accent.icon,
+                        contentDescription = null,
+                        tint = accent.colour,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = shipment.cargoProfile?.name ?: "Shipment",
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 26.sp
+                    )
+                    shipment.cargoProfile?.category
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let {
+                            Text(
+                                text = it.replaceFirstChar { c -> c.uppercase() },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                }
+            }
+
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            // AWB + transport mode badge
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = "Air Waybill",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = shipment.airwayBillNumber,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+                TransportModeBadge(shipment.transportMode)
+            }
+
+            // Origin → Destination
+            val origin = formatEndpoint(shipment.airOriginCity, shipment.airOriginIata)
+            val dest = formatEndpoint(shipment.airDestCity, shipment.airDestIata)
+            if (origin != null || dest != null) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = origin ?: "—",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Icon(
+                        imageVector = Icons.Filled.Flight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Text(
+                        text = dest ?: "—",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.End
+                    )
+                }
+            }
+
+            Divider(color = MaterialTheme.colorScheme.outlineVariant)
+
+            // Device count
+            val deviceCount = shipment.devices.size
+            Text(
+                text = when (deviceCount) {
+                    0 -> "No devices expected"
+                    1 -> "1 device to collect"
+                    else -> "$deviceCount devices to collect"
+                },
+                style = MaterialTheme.typography.titleMedium
+            )
+
+            // CTAs
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TextButton(
+                    onClick = onCancel,
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(52.dp)
+                ) { Text("Cancel") }
+                Button(
+                    onClick = {
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onConfirm()
+                    },
+                    modifier = Modifier
+                        .weight(2f)
+                        .height(52.dp)
+                ) { Text("Start scanning", style = MaterialTheme.typography.titleMedium) }
+            }
+        }
+    }
+}
+
+/**
+ * Back-compat shim: the stateless app still calls ConfirmShipmentDialog(...)
+ * from two places. Kept as a thin alias so we don't have to touch call
+ * sites in this commit; delete once callers migrate to the Sheet name.
+ */
 @Composable
 fun ConfirmShipmentDialog(
     shipment: ShipmentDto,
     confidence: String?,
     onConfirm: () -> Unit,
     onCancel: () -> Unit
-) {
-    val title = when (confidence) {
-        "low" -> "Is this the right shipment?"
-        "medium" -> "Is this right?"
-        else -> stringResource(R.string.capture_confirm_title)
+) = ConfirmShipmentSheet(shipment, confidence, onConfirm, onCancel)
+
+@Composable
+private fun TransportModeBadge(mode: String?) {
+    val text = when {
+        mode == null -> null
+        mode.equals("air", ignoreCase = true) || mode.equals("air_freight", ignoreCase = true) -> "Air freight"
+        else -> mode.replace('_', ' ').replaceFirstChar { it.uppercase() }
     }
-    AlertDialog(
-        onDismissRequest = onCancel,
-        title = { Text(title) },
-        text = {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(6.dp)
-            ) {
-                Text(
-                    shipment.airwayBillNumber,
-                    style = MaterialTheme.typography.titleMedium
-                )
-                val route = listOfNotNull(shipment.airOriginIata, shipment.airDestIata).joinToString(" → ")
-                if (route.isNotBlank()) Text(route)
-                shipment.cargoProfile?.let { cp ->
-                    val tempRange = if (cp.minTemp != null && cp.maxTemp != null)
-                        "${cp.minTemp}–${cp.maxTemp}°C" else null
-                    val line = listOfNotNull(cp.name, tempRange).joinToString(", ")
-                    if (line.isNotBlank()) {
-                        Text(line, style = MaterialTheme.typography.bodyMedium)
-                    }
-                }
-                val devicesCount = shipment.devices.size
-                if (devicesCount > 0) {
-                    Text(
-                        "$devicesCount Echo Air ${if (devicesCount == 1) "device" else "devices"} expected",
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.capture_start_collecting))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onCancel) { Text(stringResource(R.string.capture_cancel)) }
-        }
-    )
+    if (text == null) return
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+        )
+    }
+}
+
+/** "Lima (LIM)" when we have both; "LIM" if only code; null if neither. */
+private fun formatEndpoint(city: String?, code: String?): String? = when {
+    !city.isNullOrBlank() && !code.isNullOrBlank() -> "$city ($code)"
+    !code.isNullOrBlank() -> code
+    !city.isNullOrBlank() -> city
+    else -> null
 }
