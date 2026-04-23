@@ -44,6 +44,7 @@ class CollectionOrchestrator @Inject constructor(
         val lastTemp: Double? = null,
         val lastHumidity: Double? = null,
         val batteryMv: Int? = null,
+        val batteryPercent: Int? = null,
         val progress: Float = 0f,       // 0..1, only meaningful in SYNCING
         val recordCount: Int? = null,
         val tempMin: Double? = null,
@@ -138,6 +139,7 @@ class CollectionOrchestrator @Inject constructor(
                 lastTemp = beacon.temperatureC ?: d.lastTemp,
                 lastHumidity = beacon.humidity ?: d.lastHumidity,
                 batteryMv = beacon.batteryMv ?: d.batteryMv,
+                batteryPercent = beacon.batteryPercent ?: d.batteryPercent,
                 alarm = beacon.alarm || d.alarm
             )
         }
@@ -202,7 +204,8 @@ class CollectionOrchestrator @Inject constructor(
                 serial = deviceId, mac = mac, name = "KBPRO_$deviceId",
                 rssi = dev.rssi ?: -70,
                 temperatureC = dev.lastTemp, humidity = dev.lastHumidity,
-                batteryMv = dev.batteryMv, alarm = dev.alarm,
+                batteryMv = dev.batteryMv, batteryPercent = dev.batteryPercent,
+                alarm = dev.alarm,
                 recordCount = null, seenAt = System.currentTimeMillis()
             )
         )

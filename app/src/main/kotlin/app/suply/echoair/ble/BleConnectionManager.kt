@@ -89,7 +89,15 @@ class BleConnectionManager @Inject constructor(
         mac: String,
         password: String,
         onProgress: ((DownloadProgress) -> Unit)?
-    ): LogReadResult = withContext(Dispatchers.IO) {
+    ): LogReadResult = withContext(Dispatchers.Main) {
+        // kbeaconlib2's connectEnhanced / readSensorDataInfo / readSensorRecord
+        // all construct Handlers internally on the calling thread, which means
+        // any worker-thread dispatcher (Dispatchers.IO / Default) crashes with
+        // "Can't create handler inside thread … that has not called
+        // Looper.prepare()". The spike works because Compose's
+        // rememberCoroutineScope is already main-dispatched. We do the same
+        // here. All work in this function is callback-driven I/O waits, no
+        // CPU-heavy code — main dispatcher is fine.
         val beacon = resolveBeacon(mac) ?: error("unknown beacon $mac")
         connect(beacon, password)
         try {

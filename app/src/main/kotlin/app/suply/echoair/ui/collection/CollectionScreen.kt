@@ -219,7 +219,15 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
             val detailParts = buildList {
                 device.lastTemp?.let { add("%.1f°C".format(it)) }
                 device.lastHumidity?.let { add("%.0f%%".format(it)) }
-                device.batteryMv?.let { add("${it / 1000.0} V") }
+                // Prefer percent + voltage together — "100% (3.08 V)". Falls
+                // back to either alone if the other is null.
+                val percent = device.batteryPercent
+                val volts = device.batteryMv?.let { "%.2f V".format(it / 1000.0) }
+                when {
+                    percent != null && volts != null -> add("$percent% ($volts)")
+                    percent != null -> add("$percent%")
+                    volts != null -> add(volts)
+                }
                 device.rssi?.let { add("${it} dBm") }
                 device.recordCount?.let { add("$it records") }
                 if (device.tempMin != null && device.tempMax != null) {

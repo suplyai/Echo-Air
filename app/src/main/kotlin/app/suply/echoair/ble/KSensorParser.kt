@@ -4,44 +4,59 @@ import android.annotation.SuppressLint
 import android.bluetooth.le.ScanResult
 import android.os.ParcelUuid
 import timber.log.Timber
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
 
 /**
- * Parses KSensor (0x21) service data frames from kkm devices. Layout follows
- * the KKM S23H spec:
+ * Parses KSensor (0x21) service data frames from KKM devices. Layout is
+ * (matching kbeaconlib2's own parser, reverse-engineered from the vendored
+ * KBAdvPacketSensor.parseSensorData):
  *
  *   Byte 0       : frame type (0x21)
  *   Byte 1       : salt / version
- *   Byte 2..3    : sensor mask (u16 big-endian) — bit flags for which channels follow
- *   Byte 4..     : channel payloads, ordered by bit position
+ *   Byte 2..3    : sensor mask (u16 big-endian) — bit flags, see below
+ *   Byte 4..     : channel payloads, in bit order
  *
- * Channel bits of interest for the app:
- *   bit 0 : voltage (u16 mV)
- *   bit 1 : temperature (s16, 0.01 °C)
- *   bit 2 : humidity (u16, 0.01 %RH)
- *   bit 3 : alarm (u8, bitfield)
- *   bit 4 : record count (u16)
+ * Sensor mask bits (matches KKM constants):
+ *   0x001 VOLTAGE       2 bytes u16 big-endian (mV)
+ *   0x002 TEMP          2 bytes KKM signedBytes2Float: int16 / 256.0 (°C)
+ *   0x004 HUME          2 bytes KKM signedBytes2Float: int16 / 256.0 (%RH)
+ *                        (if high byte ≤ -3 the two bytes are a CPU-temp
+ *                         escape, not humidity — we skip the payload and
+ *                         leave humidity null)
+ *   0x008 ACC_AIX       6 bytes (3 × int16, x/y/z) — we skip
+ *   0x010 ALARM         1 byte bitfield
+ *   0x020 PIR           1 byte — skip
+ *   0x040 LUX           2 bytes — skip
+ *   0x080 VOC           5 bytes — skip
+ *   0x200 CO2           5 bytes — skip (we don't care for Echo Air)
+ *   0x400 RECORD_NUM    2 bytes u16 (unread record count)
  *
- * The kbeaconlib2 library ultimately owns the canonical parsing; this parser
- * is the fast path used during scanning without establishing a GATT link. If
- * the advertisement layout changes, prefer delegating to KBeaconsMgr's parsed
- * KBAdvPacketSensor rather than expanding this parser.
+ * Earlier versions of this parser had TEMP/HUME wrong (/100 instead of
+ * /256) and had the ALARM and RECORD_NUM bits shifted, so record count
+ * was never picked up. Real-hardware advertisement `21 04 07 0C 1B 19 92
+ * 1D 48 01 00 3E …` now decodes to voltage=3099 mV, temp≈25.57°C,
+ * humidity≈29.28%, recordCount=256 — matching what nRF Connect shows.
  *
  * Debug logging is rate-limited per-MAC: each unique advertisement source
- * logs one "accepted" or "rejected because …" line on its first appearance,
- * so we can tell at a glance whether the scanner is seeing the target device
- * and, if so, why the parser accepted or dropped its adv. Subsequent frames
- * from the same MAC don't log (BLE adv traffic is high — a bare Timber.d on
- * every frame would swamp logcat).
+ * logs one "accepted" or "rejected because …" line on its first appearance.
  */
 object KSensorParser {
 
     private val EDDYSTONE_UUID: UUID = UUID.fromString(KBeaconIds.EDDYSTONE_SERVICE)
 
-    /** Per-MAC rate limit: one log line per (MAC, outcome) pair, forever. Cleared by process exit. */
+    private const val MASK_VOLTAGE  = 0x001
+    private const val MASK_TEMP     = 0x002
+    private const val MASK_HUME     = 0x004
+    private const val MASK_ACC      = 0x008
+    private const val MASK_ALARM    = 0x010
+    private const val MASK_PIR      = 0x020
+    private const val MASK_LUX      = 0x040
+    private const val MASK_VOC      = 0x080
+    private const val MASK_CO2      = 0x200
+    private const val MASK_RECORD   = 0x400
+
+    /** Per-MAC rate limit: one log line per (MAC, outcome) pair per process lifetime. */
     private val loggedOutcomes = ConcurrentHashMap.newKeySet<String>()
 
     @SuppressLint("MissingPermission")
@@ -49,23 +64,29 @@ object KSensorParser {
         val address = result.device.address ?: return null
 
         val record = result.scanRecord
-        if (record == null) {
-            logOnce(address, "no scan record") ; return null
-        }
+        if (record == null) { logOnce(address, "no scan record"); return null }
         val serviceData = record.getServiceData(ParcelUuid(EDDYSTONE_UUID))
-        if (serviceData == null) {
-            logOnce(address, "no Eddystone (0xFEAA) service data") ; return null
-        }
-        if (serviceData.size < 4) {
-            logOnce(address, "service data too short (${serviceData.size}B)") ; return null
-        }
+        if (serviceData == null) { logOnce(address, "no Eddystone (0xFEAA) service data"); return null }
+        if (serviceData.size < 4) { logOnce(address, "service data too short (${serviceData.size}B)"); return null }
         if (serviceData[0] != KBeaconIds.FRAME_KSENSOR) {
-            logOnce(address, "frame type 0x%02X != KSensor 0x21".format(serviceData[0].toInt() and 0xFF)) ; return null
+            logOnce(address, "frame type 0x%02X != KSensor 0x21".format(serviceData[0].toInt() and 0xFF))
+            return null
         }
 
-        val buf = ByteBuffer.wrap(serviceData).order(ByteOrder.BIG_ENDIAN)
-        buf.position(2)
-        val mask = buf.short.toInt() and 0xFFFF
+        val mask = ((serviceData[2].toInt() and 0xFF) shl 8) or (serviceData[3].toInt() and 0xFF)
+        var i = 4
+
+        fun bytesLeft() = serviceData.size - i
+        fun u8(): Int = serviceData[i++].toInt() and 0xFF
+        fun u16be(): Int { val hi = u8(); val lo = u8(); return (hi shl 8) or lo }
+        fun s16as256(): Float {
+            val hi = serviceData[i++].toInt()
+            val lo = serviceData[i++].toInt() and 0xFF
+            var combined = ((hi and 0xFF) shl 8) or lo
+            if (combined >= 0x8000) combined -= 0x10000
+            return combined / 256f
+        }
+        fun skip(n: Int) { i += n }
 
         var voltage: Int? = null
         var temperature: Double? = null
@@ -73,26 +94,34 @@ object KSensorParser {
         var alarm = false
         var recordCount: Int? = null
 
-        fun remaining(): Int = buf.remaining()
-
-        if (mask and 0x01 != 0 && remaining() >= 2) voltage = buf.short.toInt() and 0xFFFF
-        if (mask and 0x02 != 0 && remaining() >= 2) temperature = buf.short.toInt() / 100.0
-        if (mask and 0x04 != 0 && remaining() >= 2) humidity = (buf.short.toInt() and 0xFFFF) / 100.0
-        if (mask and 0x08 != 0 && remaining() >= 1) alarm = buf.get().toInt() and 0xFF != 0
-        if (mask and 0x10 != 0 && remaining() >= 2) recordCount = buf.short.toInt() and 0xFFFF
+        if (mask and MASK_VOLTAGE != 0 && bytesLeft() >= 2) voltage = u16be()
+        if (mask and MASK_TEMP != 0 && bytesLeft() >= 2) temperature = s16as256().toDouble()
+        if (mask and MASK_HUME != 0 && bytesLeft() >= 2) {
+            // KKM quirk: if the high byte is < -2 (signed), the two bytes are a
+            // CPU-temperature escape, not humidity. We don't use CPU temp — skip
+            // it and leave humidity null.
+            val peekHigh = serviceData[i].toInt()
+            if (peekHigh >= -2) humidity = s16as256().toDouble() else skip(2)
+        }
+        if (mask and MASK_ACC != 0   && bytesLeft() >= 6) skip(6)
+        if (mask and MASK_ALARM != 0 && bytesLeft() >= 1) alarm = u8() != 0
+        if (mask and MASK_PIR != 0   && bytesLeft() >= 1) skip(1)
+        if (mask and MASK_LUX != 0   && bytesLeft() >= 2) skip(2)
+        if (mask and MASK_VOC != 0   && bytesLeft() >= 5) skip(5)
+        if (mask and MASK_CO2 != 0   && bytesLeft() >= 5) skip(5)
+        if (mask and MASK_RECORD != 0 && bytesLeft() >= 2) recordCount = u16be()
 
         val mac = KBeaconIds.canonicaliseMac(address)
         val name = record.deviceName ?: runCatching { result.device.name }.getOrNull()
-        if (name == null) {
-            logOnce(address, "no Complete/Shortened Local Name in adv") ; return null
-        }
+        if (name == null) { logOnce(address, "no Complete/Shortened Local Name in adv"); return null }
 
         val serial = KBeaconIds.extractSerialFromName(name)
         if (serial == null) {
-            logOnce(address, "name '$name' doesn't start with expected prefix '${KBeaconIds.NAME_PREFIX}'") ; return null
+            logOnce(address, "name '$name' doesn't start with expected prefix '${KBeaconIds.NAME_PREFIX}'")
+            return null
         }
 
-        logOnce(address, "accepted (serial=$serial rssi=${result.rssi} mask=0x%04X)".format(mask))
+        logOnce(address, "accepted (serial=$serial rssi=${result.rssi} mask=0x%04X mV=$voltage)".format(mask))
         return KBeacon(
             serial = serial,
             mac = mac,
@@ -101,6 +130,7 @@ object KSensorParser {
             temperatureC = temperature,
             humidity = humidity,
             batteryMv = voltage,
+            batteryPercent = voltage?.let(BatteryCurve::cr2032PercentFromMv),
             alarm = alarm,
             recordCount = recordCount,
             seenAt = System.currentTimeMillis()
@@ -110,5 +140,46 @@ object KSensorParser {
     private fun logOnce(mac: String, outcome: String) {
         val key = "$mac|$outcome"
         if (loggedOutcomes.add(key)) Timber.d("KSensor %s: %s", mac, outcome)
+    }
+}
+
+/**
+ * CR2032 coin-cell voltage-to-percent mapping. Real discharge curves sit near
+ * 3.0 V for most of the cell's life and drop sharply at end-of-life, so a
+ * linear 2.0 V → 3.0 V remap makes a fresh cell look half-dead. This
+ * piecewise-linear curve matches the shape of the manufacturer data well
+ * enough for status-icon purposes (we only care about bucket accuracy —
+ * "full / most / some / low / dead" — not sub-percent precision).
+ *
+ *   ≥ 3.00 V → 100%
+ *     2.90 V →  80%
+ *     2.80 V →  50%
+ *     2.70 V →  20%
+ *     2.60 V →  10%
+ *   ≤ 2.40 V →   0%
+ */
+internal object BatteryCurve {
+    private data class Point(val mv: Int, val pct: Int)
+    private val curve = listOf(
+        Point(mv = 3000, pct = 100),
+        Point(mv = 2900, pct =  80),
+        Point(mv = 2800, pct =  50),
+        Point(mv = 2700, pct =  20),
+        Point(mv = 2600, pct =  10),
+        Point(mv = 2400, pct =   0),
+    )
+
+    fun cr2032PercentFromMv(mv: Int): Int {
+        if (mv >= curve.first().mv) return 100
+        if (mv <= curve.last().mv) return 0
+        for (k in 0 until curve.size - 1) {
+            val hi = curve[k]; val lo = curve[k + 1]
+            if (mv <= hi.mv && mv >= lo.mv) {
+                val span = (hi.mv - lo.mv).toDouble()
+                val frac = (mv - lo.mv) / span
+                return (lo.pct + frac * (hi.pct - lo.pct)).toInt().coerceIn(0, 100)
+            }
+        }
+        return 0
     }
 }

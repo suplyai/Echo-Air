@@ -11,11 +11,12 @@ package app.suply.echoair.ble
 data class KBeacon(
     val serial: String,           // "633640"
     val mac: String,              // canonical 12-char hex, uppercase, no separators
-    val name: String,             // raw advertised name, e.g. "KBPRO_633640"
+    val name: String,             // raw advertised name, e.g. "KBPro_633640"
     val rssi: Int,
     val temperatureC: Double?,
     val humidity: Double?,
     val batteryMv: Int?,
+    val batteryPercent: Int?,     // derived from mV via BatteryCurve (CR2032)
     val alarm: Boolean,
     val recordCount: Int?,
     val seenAt: Long
