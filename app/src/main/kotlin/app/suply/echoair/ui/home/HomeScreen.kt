@@ -23,7 +23,8 @@ import app.suply.echoair.R
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
-    onStartCapture: () -> Unit,
+    onScanDocument: () -> Unit,
+    onScanDeviceQr: () -> Unit,
     onOpenSettings: () -> Unit
 ) {
     Scaffold(
@@ -48,7 +49,7 @@ fun HomeScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { onStartCapture() },
+                    .clickable { onScanDocument() },
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
             ) {
@@ -73,7 +74,7 @@ fun HomeScreen(
                 }
             }
 
-            OutlinedButton(onClick = onStartCapture, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onScanDeviceQr, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Default.QrCodeScanner, contentDescription = null)
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.home_scan_qr))

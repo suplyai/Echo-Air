@@ -9,13 +9,19 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Parses KSensor (0x21) service data frames from KKM devices. Layout is
- * (matching kbeaconlib2's own parser, reverse-engineered from the vendored
- * KBAdvPacketSensor.parseSensorData):
+ * (verified against kbeaconlib2's own parser — KBAdvPacketSensor.parseAdvPacket
+ * plus .parseSensorData — and real-hardware advertisements):
  *
- *   Byte 0       : frame type (0x21)
- *   Byte 1       : salt / version
- *   Byte 2..3    : sensor mask (u16 big-endian) — bit flags, see below
- *   Byte 4..     : channel payloads, in bit order
+ *   Byte 0       : frame type (0x21 for KKM V1 KSensor)
+ *   Byte 1..2    : sensor mask (u16 big-endian) — bit flags, see below
+ *   Byte 3..     : channel payloads, in bit order
+ *
+ * The original brief described a "salt" byte at position 1 with mask at 2..3.
+ * That doesn't match what KKM ships; the real layout has mask at 1..2 with
+ * no salt. Getting this wrong shifts every subsequent field by one byte and
+ * makes every mask-bit check look at the wrong nibble — which was the origin
+ * of the 4% "battery" reading (the decoded mask happened to include the
+ * HUME bit in the wrong position, and its payload decoded to ≈4.1%).
  *
  * Sensor mask bits (matches KKM constants):
  *   0x001 VOLTAGE       2 bytes u16 big-endian (mV)
@@ -31,12 +37,6 @@ import java.util.concurrent.ConcurrentHashMap
  *   0x080 VOC           5 bytes — skip
  *   0x200 CO2           5 bytes — skip (we don't care for Echo Air)
  *   0x400 RECORD_NUM    2 bytes u16 (unread record count)
- *
- * Earlier versions of this parser had TEMP/HUME wrong (/100 instead of
- * /256) and had the ALARM and RECORD_NUM bits shifted, so record count
- * was never picked up. Real-hardware advertisement `21 04 07 0C 1B 19 92
- * 1D 48 01 00 3E …` now decodes to voltage=3099 mV, temp≈25.57°C,
- * humidity≈29.28%, recordCount=256 — matching what nRF Connect shows.
  *
  * Debug logging is rate-limited per-MAC: each unique advertisement source
  * logs one "accepted" or "rejected because …" line on its first appearance.
@@ -67,14 +67,15 @@ object KSensorParser {
         if (record == null) { logOnce(address, "no scan record"); return null }
         val serviceData = record.getServiceData(ParcelUuid(EDDYSTONE_UUID))
         if (serviceData == null) { logOnce(address, "no Eddystone (0xFEAA) service data"); return null }
-        if (serviceData.size < 4) { logOnce(address, "service data too short (${serviceData.size}B)"); return null }
+        if (serviceData.size < 3) { logOnce(address, "service data too short (${serviceData.size}B)"); return null }
         if (serviceData[0] != KBeaconIds.FRAME_KSENSOR) {
             logOnce(address, "frame type 0x%02X != KSensor 0x21".format(serviceData[0].toInt() and 0xFF))
             return null
         }
 
-        val mask = ((serviceData[2].toInt() and 0xFF) shl 8) or (serviceData[3].toInt() and 0xFF)
-        var i = 4
+        // Mask is bytes 1..2 big-endian, payload starts at byte 3. See class kdoc.
+        val mask = ((serviceData[1].toInt() and 0xFF) shl 8) or (serviceData[2].toInt() and 0xFF)
+        var i = 3
 
         fun bytesLeft() = serviceData.size - i
         fun u8(): Int = serviceData[i++].toInt() and 0xFF

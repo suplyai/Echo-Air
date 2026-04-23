@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import app.suply.echoair.ui.capture.CaptureMode
 import app.suply.echoair.ui.capture.CaptureScreen
 import app.suply.echoair.ui.collection.CollectionScreen
 import app.suply.echoair.ui.home.HomeScreen
@@ -46,11 +47,12 @@ class MainActivity : ComponentActivity() {
 
 object Routes {
     const val HOME = "home"
-    const val CAPTURE = "capture"
+    const val CAPTURE = "capture/{mode}"
     const val COLLECTION = "collection/{shipmentId}"
     const val SETTINGS = "settings"
     const val WEB = "web?path={path}&title={title}"
 
+    fun capture(mode: CaptureMode) = "capture/${mode.name}"
     fun collection(shipmentId: String) = "collection/$shipmentId"
     fun web(path: String, title: String = "") =
         "web?path=${java.net.URLEncoder.encode(path, "UTF-8")}&title=${java.net.URLEncoder.encode(title, "UTF-8")}"
@@ -63,12 +65,17 @@ private fun EchoAirNavHost() {
     NavHost(navController = nav, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeScreen(
-                onStartCapture = { nav.navigate(Routes.CAPTURE) },
+                onScanDocument = { nav.navigate(Routes.capture(CaptureMode.DOCUMENT)) },
+                onScanDeviceQr = { nav.navigate(Routes.capture(CaptureMode.QR)) },
                 onOpenSettings = { nav.navigate(Routes.SETTINGS) }
             )
         }
-        composable(Routes.CAPTURE) {
+        composable(Routes.CAPTURE) { entry ->
+            val mode = entry.arguments?.getString("mode")
+                ?.let { runCatching { CaptureMode.valueOf(it) }.getOrNull() }
+                ?: CaptureMode.DOCUMENT
             CaptureScreen(
+                mode = mode,
                 onCancel = { nav.popBackStack() },
                 onShipmentReady = { id ->
                     nav.navigate(Routes.collection(id)) {

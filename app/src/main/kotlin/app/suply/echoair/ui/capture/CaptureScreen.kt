@@ -15,8 +15,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DocumentScanner
-import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -31,16 +29,18 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import app.suply.echoair.R
 import app.suply.echoair.data.api.ShipmentDto
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.concurrent.Executors
 
-private enum class Mode { DOCUMENT, QR }
+/** Which sub-view the Capture screen opens straight into. Each of the two
+ *  home-screen CTAs picks exactly one of these; there is no in-camera mode
+ *  toggle — the user already told us what they want before the camera even
+ *  turned on. */
+enum class CaptureMode { DOCUMENT, QR }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CaptureScreen(
+    mode: CaptureMode,
     onCancel: () -> Unit,
     onShipmentReady: (shipmentId: String) -> Unit,
     vm: CaptureViewModel = hiltViewModel()
@@ -57,12 +57,11 @@ fun CaptureScreen(
     LaunchedEffect(Unit) { if (!granted) permLauncher.launch(Manifest.permission.CAMERA) }
 
     val state by vm.state.collectAsState()
-    var mode by remember { mutableStateOf(Mode.DOCUMENT) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (mode == Mode.DOCUMENT) "Scan document" else "Scan device QR") },
+                title = { Text(if (mode == CaptureMode.DOCUMENT) "Scan document" else "Scan device QR") },
                 navigationIcon = {
                     IconButton(onClick = onCancel) { Icon(Icons.Default.Close, contentDescription = null) }
                 }
@@ -80,34 +79,11 @@ fun CaptureScreen(
                 )
             } else {
                 when (mode) {
-                    Mode.DOCUMENT -> DocumentCaptureView(
+                    CaptureMode.DOCUMENT -> DocumentCaptureView(
                         onCaptured = { dataUrl -> vm.identify(dataUrl) }
                     )
-                    Mode.QR -> QrCaptureView(
+                    CaptureMode.QR -> QrCaptureView(
                         onScanned = { payload -> vm.lookupByQr(payload) }
-                    )
-                }
-
-                // Mode toggle
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    ElevatedFilterChip(
-                        selected = mode == Mode.DOCUMENT,
-                        onClick = { mode = Mode.DOCUMENT },
-                        label = { Text("Document") },
-                        leadingIcon = { Icon(Icons.Default.DocumentScanner, contentDescription = null) }
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    ElevatedFilterChip(
-                        selected = mode == Mode.QR,
-                        onClick = { mode = Mode.QR },
-                        label = { Text("Device QR") },
-                        leadingIcon = { Icon(Icons.Default.QrCode2, contentDescription = null) }
                     )
                 }
 
