@@ -143,7 +143,18 @@ class BleConnectionManager @Inject constructor(
     private suspend fun connect(beacon: KBeacon, password: String) =
         suspendCancellableCoroutine { cont ->
             val para = KBConnPara().apply {
-                syncUtcTime = false       // preserve drifted clock so we can capture the offset
+                // syncUtcTime MUST stay false for destination collection.
+                //
+                // Setting this to true would push the phone's UTC into the
+                // device's RTC during the connection handshake, overwriting
+                // the drifted clock we specifically want to measure. We need
+                // that drift to reach /api/echo-scan as
+                // device_clock_offset_seconds so the backend's fusion layer
+                // can correlate independent evidence streams.
+                //
+                // Origin activation (web-platform flow, not this app) IS the
+                // place where syncUtcTime = true — see docs/operating-profile.md.
+                syncUtcTime = false
                 readCommPara = true        // triggers MTU negotiation + common-cfg read
                 readSensorPara = true
                 readTriggerPara = false
