@@ -5,6 +5,7 @@ import androidx.work.WorkManager
 import app.suply.echoair.data.api.EchoScanRequest
 import app.suply.echoair.data.api.EchoScanResponse
 import app.suply.echoair.data.api.ReadingDto
+import app.suply.echoair.data.api.ShipmentDeviceDto
 import app.suply.echoair.data.api.ShipmentDto
 import app.suply.echoair.data.api.SuplyApi
 import app.suply.echoair.data.api.VisionRequest
@@ -48,8 +49,43 @@ class ShipmentRepository @Inject constructor(
 
     suspend fun lookupDevice(identifier: String): ShipmentDto? {
         val resp = api.lookupDevice(identifier, includeShipment = true)
-        resp.shipment?.let { cache(it) }
-        return resp.shipment
+        val raw = resp.shipment ?: return null.also {
+            Timber.i("Device lookup: shipment sub-object absent for identifier=%s", identifier)
+        }
+        // Guardrail for a real pilot symptom: the /api/devices/lookup
+        // response's embedded shipment sub-object sometimes arrives with an
+        // empty devices[] array even when we know a device is attached (we
+        // literally just looked it up by that device's identifier). If the
+        // backend dropped the list, synthesize it from the top-level
+        // response fields — otherwise the confirmation sheet renders the
+        // misleading "No devices expected". Emit one Timber line per
+        // observed shape so we can push the backend to populate devices[]
+        // consistently; then delete this workaround.
+        val shipment = if (raw.devices.isEmpty()) {
+            Timber.w(
+                "Device lookup: shipment %s came back with devices[]=[]; synthesising entry for %s",
+                raw.id, resp.deviceId
+            )
+            raw.copy(
+                devices = listOf(
+                    ShipmentDeviceDto(
+                        deviceId = resp.deviceId,
+                        mac = resp.mac,
+                        serial = resp.serial,
+                        model = resp.model,
+                        status = "assigned"
+                    )
+                )
+            )
+        } else {
+            Timber.i(
+                "Device lookup: shipment %s resolved with %d device(s) in sub-object",
+                raw.id, raw.devices.size
+            )
+            raw
+        }
+        cache(shipment)
+        return shipment
     }
 
     /**
