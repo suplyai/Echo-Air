@@ -97,10 +97,29 @@ class CollectionOrchestrator @Inject constructor(
     private suspend fun runScan() {
         val expectedMacs = _state.value.devices.mapNotNull { it.mac?.uppercase()?.replace(":", "") }.toSet()
         val expectedSerials = _state.value.devices.map { it.deviceId }.toSet()
+        Timber.d(
+            "Collection scan starting. Expected MACs=%s serials=%s",
+            expectedMacs, expectedSerials
+        )
+
+        // Rate-limit log: one line per (MAC, decision) pair, so filter
+        // mismatches surface without spamming logcat on every adv.
+        val loggedFilterDecisions = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
         scanner.scan()
             .filter { beacon ->
-                beacon.mac.uppercase() in expectedMacs || beacon.serial in expectedSerials
+                val macMatch = beacon.mac.uppercase() in expectedMacs
+                val serialMatch = beacon.serial in expectedSerials
+                val pass = macMatch || serialMatch
+                val key = "${beacon.mac}|$pass"
+                if (loggedFilterDecisions.add(key)) {
+                    Timber.d(
+                        "Filter %s: beacon mac=%s serial=%s (macMatch=%s serialMatch=%s)",
+                        if (pass) "PASS" else "DROP",
+                        beacon.mac, beacon.serial, macMatch, serialMatch
+                    )
+                }
+                pass
             }
             .collect { beacon -> onBeacon(beacon) }
     }

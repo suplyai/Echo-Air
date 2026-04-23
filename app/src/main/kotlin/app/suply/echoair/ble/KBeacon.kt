@@ -34,12 +34,21 @@ object KBeaconIds {
     /** Default password for stock-provisioned devices. */
     const val DEFAULT_PASSWORD = "0000000000000000"
 
-    /** Device name prefix for advertisements. */
+    /**
+     * Device name prefix for advertisements. Case-insensitive in practice —
+     * KKM firmware has shipped both "KBPRO_<serial>" and "KBPro_<serial>"
+     * in the Complete Local Name field, so all comparisons against this
+     * prefix must use ignoreCase = true.
+     */
     const val NAME_PREFIX = "KBPRO_"
 
     fun canonicaliseMac(mac: String): String =
         mac.uppercase().replace(":", "").replace("-", "")
 
-    fun extractSerialFromName(name: String?): String? =
-        name?.takeIf { it.startsWith(NAME_PREFIX) }?.removePrefix(NAME_PREFIX)
+    fun extractSerialFromName(name: String?): String? {
+        val n = name ?: return null
+        if (!n.startsWith(NAME_PREFIX, ignoreCase = true)) return null
+        val serial = n.substring(NAME_PREFIX.length)
+        return serial.ifEmpty { null }
+    }
 }
