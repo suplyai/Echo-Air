@@ -87,9 +87,15 @@ class CaptureViewModel @Inject constructor(
                 _state.value = when {
                     shipment != null -> {
                         Timber.i(
-                            "Vision response: shipment=%s awb=%s devices=%d confidence=%s",
+                            "Vision response: shipment=%s awb=%s devices=%d confidence=%s " +
+                                "commodityName=%s commodityCategory=%s originCity=%s originIata=%s " +
+                                "destCity=%s destIata=%s transportMode=%s",
                             shipment.id, shipment.airwayBillNumber,
-                            shipment.devices.size, resp.confidence
+                            shipment.devices.size, resp.confidence,
+                            shipment.commodityName, shipment.commodityCategory,
+                            shipment.airOriginCity, shipment.airOriginIata,
+                            shipment.airDestCity, shipment.airDestIata,
+                            shipment.transportMode
                         )
                         State(shipment = shipment, confidence = resp.confidence)
                     }
@@ -132,9 +138,15 @@ class CaptureViewModel @Inject constructor(
                 val shipment = repo.lookupDevice(identifier)
                 _state.value = if (shipment != null) {
                     Timber.i(
-                        "Device lookup: shipment=%s awb=%s devices=%d for identifier=%s",
+                        "Device lookup: shipment=%s awb=%s devices=%d for identifier=%s " +
+                            "commodityName=%s commodityCategory=%s originCity=%s originIata=%s " +
+                            "destCity=%s destIata=%s transportMode=%s",
                         shipment.id, shipment.airwayBillNumber,
-                        shipment.devices.size, identifier
+                        shipment.devices.size, identifier,
+                        shipment.commodityName, shipment.commodityCategory,
+                        shipment.airOriginCity, shipment.airOriginIata,
+                        shipment.airDestCity, shipment.airDestIata,
+                        shipment.transportMode
                     )
                     State(shipment = shipment, confidence = "high")
                 } else {
