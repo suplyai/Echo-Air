@@ -10,9 +10,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -25,6 +24,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import app.suply.echoair.domain.Awb
 import app.suply.echoair.ui.capture.CaptureViewModel
 import app.suply.echoair.ui.capture.failureCopy
+import app.suply.echoair.ui.haptics.EchoHaptics
 
 /**
  * Structured AWB-entry screen.
@@ -46,7 +46,8 @@ fun ManualAwbScreen(
     vm: CaptureViewModel = hiltViewModel()
 ) {
     val state by vm.state.collectAsState()
-    val haptics = LocalHapticFeedback.current
+    val context = LocalContext.current
+    val appContext = context.applicationContext
     val focusManager = LocalFocusManager.current
 
     var prefix by remember { mutableStateOf("") }
@@ -144,7 +145,7 @@ fun ManualAwbScreen(
                     length = 8,
                     imeAction = ImeAction.Done,
                     onImeAction = {
-                        validAwb?.let { submit(it, vm, haptics) }
+                        validAwb?.let { submit(it, vm, appContext) }
                     },
                     modifier = Modifier
                         .weight(0.65f)
@@ -165,7 +166,7 @@ fun ManualAwbScreen(
             Spacer(Modifier.weight(1f))
 
             Button(
-                onClick = { validAwb?.let { submit(it, vm, haptics) } },
+                onClick = { validAwb?.let { submit(it, vm, appContext) } },
                 enabled = validAwb != null && !state.loading,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -206,9 +207,9 @@ fun ManualAwbScreen(
 private fun submit(
     awb: String,
     vm: CaptureViewModel,
-    haptics: androidx.compose.ui.hapticfeedback.HapticFeedback
+    appContext: android.content.Context
 ) {
-    haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+    EchoHaptics.tick(appContext)
     vm.identifyByAwb(awb)
 }
 

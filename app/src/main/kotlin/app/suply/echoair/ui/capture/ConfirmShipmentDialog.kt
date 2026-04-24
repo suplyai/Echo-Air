@@ -11,12 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.suply.echoair.data.api.ShipmentDto
+import app.suply.echoair.ui.haptics.EchoHaptics
 
 /**
  * Bottom-sheet identity confirmation for a resolved shipment.
@@ -43,7 +43,7 @@ fun ConfirmShipmentSheet(
     onCancel: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    val haptics = LocalHapticFeedback.current
+    val appContext = LocalContext.current.applicationContext
     // Prefer the root-level commodity fields the backend now sends
     // (commodity_name / commodity_category). Fall back to the older nested
     // cargo_profile shape so responses from services that haven't caught up
@@ -182,7 +182,7 @@ fun ConfirmShipmentSheet(
                 ) { Text("Cancel") }
                 Button(
                     onClick = {
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        EchoHaptics.tick(appContext)
                         onConfirm()
                     },
                     modifier = Modifier

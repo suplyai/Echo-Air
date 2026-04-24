@@ -45,6 +45,14 @@
     <!-- Notifications for Android 13+ collection foreground notification -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!--
+      Platform vibrator for the "confirmed scan" / submit-success haptic tick.
+      VIBRATE is a normal permission — no runtime grant required. Used because
+      Compose's LocalHapticFeedback wrapper is suppressed by some OEM skins
+      (Honor / MagicOS) even when the user expects a firm pulse.
+    -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
     <uses-feature
         android:name="android.hardware.bluetooth_le"
         android:required="true" />

@@ -35,13 +35,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import app.suply.echoair.ui.haptics.EchoHaptics
 import com.google.mlkit.vision.barcode.BarcodeScanner
 import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
@@ -88,8 +87,8 @@ fun QrCaptureView(onScanned: (payload: String) -> Unit) {
         )
     }
     val consumed = remember { AtomicBoolean(false) }
-    val haptics = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
+    val appContext = context.applicationContext
 
     var successFlash by remember { mutableStateOf(false) }
 
@@ -144,7 +143,7 @@ fun QrCaptureView(onScanned: (payload: String) -> Unit) {
                                                 // onScanned is delayed ~180ms so the tick has
                                                 // time to register before the parent screen's
                                                 // loading overlay takes over.
-                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                EchoHaptics.tick(appContext)
                                                 successFlash = true
                                                 scope.launch {
                                                     delay(180)
