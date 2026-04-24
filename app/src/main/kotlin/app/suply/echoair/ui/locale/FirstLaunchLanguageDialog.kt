@@ -31,17 +31,19 @@ fun FirstLaunchLanguageGate(
     val context = LocalContext.current
     val detected = remember { AppLocale.fromSystemDefault() }
 
+    val appContext = context.applicationContext
+
     // If the device is already on an unsupported language, quietly default
     // to English and bring up the picker directly. No confirmation prompt
     // because the user has no established expectation to confirm against.
     if (detected == null) {
         var showPicker by remember { mutableStateOf(true) }
-        LocaleManager.apply(AppLocale.DEFAULT)
+        LocaleManager.apply(appContext, AppLocale.DEFAULT)
         if (showPicker) {
             LanguagePickerSheet(
                 onSelect = { picked ->
                     showPicker = false
-                    LocaleManager.apply(picked)
+                    LocaleManager.apply(appContext, picked)
                     LocaleManager.markFirstLaunchConfirmed(context)
                     onAcknowledged()
                 },
@@ -57,7 +59,7 @@ fun FirstLaunchLanguageGate(
 
     // Apply the detected locale so the dialog itself renders in the user's
     // own language — can't confirm a choice in a language you don't read.
-    LocaleManager.apply(detected)
+    LocaleManager.apply(appContext, detected)
 
     var showPicker by remember { mutableStateOf(false) }
 
@@ -65,7 +67,7 @@ fun FirstLaunchLanguageGate(
         LanguagePickerSheet(
             onSelect = { picked ->
                 showPicker = false
-                LocaleManager.apply(picked)
+                LocaleManager.apply(appContext, picked)
                 LocaleManager.markFirstLaunchConfirmed(context)
                 onAcknowledged()
             },

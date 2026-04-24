@@ -28,6 +28,11 @@ class EchoAirApp : Application(), Configuration.Provider {
         // Warm the IATA carrier lookup so the first keystroke on the AWB
         // prefix field hits an in-memory map rather than disk I/O.
         app.suply.echoair.domain.IataCarriers.warmup(this)
+        // Re-apply the user's stored language choice. Belt-and-suspenders
+        // against AppCompatDelegate's persistence path silently no-opping
+        // on Compose-only apps and certain OEM skins (Honor / MagicOS).
+        // Idempotent if AppCompat already restored it.
+        app.suply.echoair.ui.locale.LocaleManager.restoreFromPreferences(this)
     }
 
     private fun createNotificationChannels() {

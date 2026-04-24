@@ -93,6 +93,24 @@
             android:exported="false"
             android:foregroundServiceType="connectedDevice|dataSync" />
 
+        <!--
+          Required for AppCompatDelegate.setApplicationLocales to persist
+          on Compose-only apps (MainActivity extends ComponentActivity, not
+          AppCompatActivity). Without this declaration AppCompat silently
+          no-ops the per-app locale write on API 32 and below, and on some
+          OEM builds even on 33+. autoStoreLocales=true tells AppCompat to
+          mirror the choice into its own SharedPreferences so the locale
+          survives process death.
+        -->
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
+
         <provider
             android:name="androidx.startup.InitializationProvider"
             android:authorities="${applicationId}.androidx-startup"

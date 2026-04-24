@@ -39,6 +39,8 @@ fun HomeScreen(
     onScanDocumentDebug: () -> Unit,
 ) {
     var showLanguageSheet by remember { mutableStateOf(false) }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val appContext = context.applicationContext
 
     Scaffold(
         topBar = {
@@ -127,7 +129,7 @@ fun HomeScreen(
         LanguagePickerSheet(
             onSelect = { locale ->
                 showLanguageSheet = false
-                LocaleManager.apply(locale)
+                LocaleManager.apply(appContext, locale)
             },
             onDismiss = { showLanguageSheet = false }
         )

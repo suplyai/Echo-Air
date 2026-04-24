@@ -3,6 +3,7 @@ package app.suply.echoair.ui.locale
 import android.content.Context
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import timber.log.Timber
 import java.util.Locale
 
 /**
@@ -34,20 +35,27 @@ enum class AppLocale(val tag: String, val nativeNameKey: String) {
 /**
  * Per-app locale persistence + apply.
  *
- * AppCompatDelegate.setApplicationLocales is the single source of truth.
- * On API 33+ the OS surfaces it under Settings → Apps → Echo Air → Language;
- * on API 30–32 the AppCompat library persists and applies it per-process.
- * [LocaleManager] layers two small things on top of the platform call:
- *   1. A SharedPreferences flag tracking whether the user has been through
- *      the first-launch confirmation. Without this we'd re-prompt every
- *      time the user opens the app after a reboot.
- *   2. A normalised current() accessor so the UI can pick the right radio
- *      in the language sheet without dealing with null-list edge cases.
+ * AppCompatDelegate.setApplicationLocales is the primary mechanism, but
+ * it has two failure modes we have to defend against:
+ *   1. On Compose-only apps (no AppCompatActivity), the AppCompat library
+ *      needs the AppLocalesMetadataHolderService declared in the manifest
+ *      with autoStoreLocales=true. We do declare it, but if a future
+ *      manifest merge regresses that, the call silently no-ops.
+ *   2. On API 33+ the OS handles persistence directly via the platform
+ *      LocaleManager. Some OEM skins (Honor / MagicOS confirmed) have
+ *      been observed eating the platform call too.
+ *
+ * Belt-and-suspenders: we also mirror the chosen tag into our own
+ * SharedPreferences in [apply], and re-apply it from
+ * [restoreFromPreferences] at app start (called from EchoAirApp.onCreate)
+ * regardless of whether AppCompat already restored. Idempotent — if
+ * AppCompat did persist correctly, the second apply is a no-op.
  */
 object LocaleManager {
 
     private const val PREFS = "echoair_locale"
     private const val KEY_FIRST_LAUNCH_DONE = "first_launch_confirmed"
+    private const val KEY_CHOSEN_TAG = "chosen_language_tag"
 
     /** The language currently applied to the app, or null if the OS is using its default. */
     fun current(): AppLocale? {
@@ -57,12 +65,34 @@ object LocaleManager {
     }
 
     /**
-     * Apply [locale] across the app immediately. Safe to call from any
-     * thread — AppCompatDelegate hops to the main thread internally to
-     * trigger Activity recreation where required.
+     * Apply [locale] across the app immediately. Persists in two places:
+     *   - AppCompatDelegate (the primary, OS-aware path)
+     *   - Our own SharedPreferences (the fallback, applied at next start)
+     *
+     * Safe to call from any thread — AppCompatDelegate hops to the main
+     * thread internally to trigger Activity recreation where required.
      */
-    fun apply(locale: AppLocale) {
+    fun apply(context: Context, locale: AppLocale) {
+        Timber.i("LocaleManager.apply(%s) — primary path via AppCompatDelegate", locale.tag)
         AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(locale.tag))
+        prefs(context).edit().putString(KEY_CHOSEN_TAG, locale.tag).apply()
+    }
+
+    /**
+     * Re-apply the user's stored choice at app start. No-op if the user
+     * has never chosen (first-launch gate handles that path), or if the
+     * AppCompatDelegate state already matches.
+     */
+    fun restoreFromPreferences(context: Context) {
+        val storedTag = prefs(context).getString(KEY_CHOSEN_TAG, null) ?: return
+        val stored = AppLocale.fromTag(storedTag) ?: return
+        val applied = current()
+        if (applied == stored) {
+            Timber.d("LocaleManager.restore: already %s, skipping", stored.tag)
+            return
+        }
+        Timber.i("LocaleManager.restore: applying stored %s (was %s)", stored.tag, applied?.tag)
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(stored.tag))
     }
 
     fun hasConfirmedFirstLaunch(context: Context): Boolean =
