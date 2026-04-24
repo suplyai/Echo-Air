@@ -1,9 +1,9 @@
 package app.suply.echoair.ui.capture
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Grass
 import androidx.compose.material.icons.filled.Icecream
-import androidx.compose.material.icons.filled.Inventory2
 import androidx.compose.material.icons.filled.LocalFlorist
 import androidx.compose.material.icons.filled.LocalPharmacy
 import androidx.compose.material.icons.filled.Restaurant
@@ -32,7 +32,14 @@ internal data class CommodityAccent(
         private val PRODUCE  = CommodityAccent(Icons.Filled.Grass,          Color(0xFF2E7D32)) // green
         private val MEAT     = CommodityAccent(Icons.Filled.Restaurant,     Color(0xFFB71C1C)) // deep red
         private val DAIRY    = CommodityAccent(Icons.Filled.Icecream,       Color(0xFF6D4C41)) // warm brown
-        private val DEFAULT  = CommodityAccent(Icons.Filled.Inventory2,     Color(0xFF455A64)) // blue-grey
+        /**
+         * Fallback when the category hasn't been resolved yet. A plane matches
+         * Echo Air's air-only scope and pairs with the "Air freight" badge;
+         * earlier we used Inventory2 which carried an industrial warehouse
+         * vibe at the very moment we want the user to feel confident the app
+         * understood their shipment.
+         */
+        private val DEFAULT  = CommodityAccent(Icons.Filled.Flight,         Color(0xFF455A64)) // blue-grey
 
         fun forCategory(category: String?): CommodityAccent {
             val key = category?.trim()?.lowercase() ?: return DEFAULT

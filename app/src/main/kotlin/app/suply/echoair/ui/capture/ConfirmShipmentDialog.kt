@@ -44,7 +44,13 @@ fun ConfirmShipmentSheet(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val haptics = LocalHapticFeedback.current
-    val accent = CommodityAccent.forCategory(shipment.cargoProfile?.category)
+    // Prefer the root-level commodity fields the backend now sends
+    // (commodity_name / commodity_category). Fall back to the older nested
+    // cargo_profile shape so responses from services that haven't caught up
+    // still render the hero correctly.
+    val commodityName = shipment.commodityName ?: shipment.cargoProfile?.name
+    val commodityCategory = shipment.commodityCategory ?: shipment.cargoProfile?.category
+    val accent = CommodityAccent.forCategory(commodityCategory)
 
     ModalBottomSheet(
         onDismissRequest = onCancel,
@@ -87,12 +93,12 @@ fun ConfirmShipmentSheet(
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = shipment.cargoProfile?.name ?: "Shipment",
+                        text = commodityName ?: "Shipment",
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 26.sp
                     )
-                    shipment.cargoProfile?.category
+                    commodityCategory
                         ?.takeIf { it.isNotBlank() }
                         ?.let {
                             Text(

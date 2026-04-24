@@ -58,6 +58,14 @@ data class ShipmentDto(
     @SerialName("air_dest_city") val airDestCity: String? = null,
     @SerialName("transport_mode") val transportMode: String? = null,
     val status: String,
+    /**
+     * Commodity identity at shipment root (backend's chosen shape as of
+     * v0.3.4 — not nested under cargo_profile). Drives the hero text and
+     * category accent on the confirmation sheet. CargoProfileDto still
+     * carries temperature/humidity bounds for the collection screen.
+     */
+    @SerialName("commodity_name") val commodityName: String? = null,
+    @SerialName("commodity_category") val commodityCategory: String? = null,
     @SerialName("cargo_profile") val cargoProfile: CargoProfileDto? = null,
     val devices: List<ShipmentDeviceDto> = emptyList()
 )
