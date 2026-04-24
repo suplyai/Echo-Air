@@ -6,6 +6,7 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -15,6 +16,7 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -469,6 +471,31 @@ private fun stateLabel(device: Device): String = when (device.state) {
     DeviceState.ERROR -> stringResource(R.string.collection_state_error)
 }
 
+/**
+ * Sticky state-aware bottom bar. Always visible — never scrolls out of view.
+ * Transforms in place between the two states:
+ *
+ *   IN-PROGRESS (N remaining, or total still unknown):
+ *     - Muted surface-variant background, onSurfaceVariant text.
+ *     - Reads as STATUS, not ACTION: "N more devices to find" or
+ *       "Finding devices…" (pre-load).
+ *     - Non-tappable. The secondary "Close shipment without remaining
+ *       devices" link sits below as a text-only affordance for the
+ *       genuinely-lost-device escape hatch.
+ *
+ *   ALL-COLLECTED:
+ *     - Background crossfades to primary over 200ms.
+ *     - Text becomes the CTA ("All devices collected — finish").
+ *     - One-shot 1.0 → 1.05 → 1.0 scale pulse (~300ms) on the state flip.
+ *     - Firm [EchoHaptics.tick] on the same flip, matching the
+ *       DEVICE_COLLECTED haptic — "the moment registers".
+ *     - Now tappable; taps fire [onFinish].
+ *     - Close-partial link hides — there's nothing to close without.
+ *
+ * Pulse + haptic only fire on the !allScanned → allScanned *transition* —
+ * initial composition with allScanned already true (e.g. after rotation)
+ * stays quiet.
+ */
 @Composable
 private fun BottomBar(
     collected: Int,
@@ -477,30 +504,83 @@ private fun BottomBar(
     onFinish: () -> Unit,
     onClosePartial: () -> Unit
 ) {
+    val context = LocalContext.current.applicationContext
+    val remaining = (total - collected).coerceAtLeast(0)
+
+    val pulseScale = remember { Animatable(1f) }
+    var previouslyAllScanned by remember { mutableStateOf(allScanned) }
+    LaunchedEffect(allScanned) {
+        if (allScanned && !previouslyAllScanned) {
+            EchoHaptics.tick(context)
+            pulseScale.animateTo(1.05f, tween(150, easing = FastOutSlowInEasing))
+            pulseScale.animateTo(1.0f, tween(150, easing = FastOutSlowInEasing))
+        }
+        previouslyAllScanned = allScanned
+    }
+
+    val barColor by animateColorAsState(
+        targetValue = if (allScanned) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.surfaceVariant,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "bottomBarBg"
+    )
+    val textColor by animateColorAsState(
+        targetValue = if (allScanned) MaterialTheme.colorScheme.onPrimary
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "bottomBarText"
+    )
+
     Surface(tonalElevation = 3.dp) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            val remaining = total - collected
-            if (allScanned) {
-                Button(onClick = onFinish, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.collection_finish))
-                }
-            } else {
-                Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                    Text(
-                        pluralStringResource(
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        scaleX = pulseScale.value
+                        scaleY = pulseScale.value
+                    }
+                    .clip(RoundedCornerShape(28.dp))
+                    .background(barColor)
+                    .then(
+                        if (allScanned) Modifier.clickable(onClick = onFinish)
+                        else Modifier
+                    )
+                    .heightIn(min = 56.dp)
+                    .padding(horizontal = 20.dp, vertical = 14.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = when {
+                        allScanned -> stringResource(R.string.collection_finish)
+                        total > 0 -> pluralStringResource(
                             R.plurals.collection_more_devices_to_find,
                             remaining,
                             remaining
                         )
+                        else -> stringResource(R.string.collection_finding_devices)
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = textColor,
+                    fontWeight = if (allScanned) FontWeight.SemiBold else FontWeight.Medium
+                )
+            }
+            if (!allScanned) {
+                TextButton(
+                    onClick = onClosePartial,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        stringResource(R.string.collection_close_partial),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-                TextButton(onClick = onClosePartial, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.collection_close_partial))
                 }
             }
         }

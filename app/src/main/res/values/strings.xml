@@ -97,6 +97,7 @@
     <string name="collection_alarm_on_device">Alarm on device</string>
     <!-- Bottom bar -->
     <string name="collection_finish">All devices collected — finish</string>
+    <string name="collection_finding_devices">Finding devices…</string>
     <string name="collection_close_partial">Close shipment without remaining devices</string>
     <plurals name="collection_more_devices_to_find">
         <item quantity="one">1 more device to find</item>

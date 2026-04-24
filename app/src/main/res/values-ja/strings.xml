@@ -70,6 +70,7 @@
     <string name="collection_row_device_id">デバイス %1$s</string>
     <string name="collection_alarm_on_device">デバイスでアラームが発生</string>
     <string name="collection_finish">全デバイスの収集完了 — 終了</string>
+    <string name="collection_finding_devices">デバイスを検索中…</string>
     <string name="collection_close_partial">残りのデバイスを含めずに貨物を終了</string>
     <plurals name="collection_more_devices_to_find">
         <item quantity="other">残り %1$d 台</item>

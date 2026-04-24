@@ -70,6 +70,7 @@
     <string name="collection_row_device_id">设备 %1$s</string>
     <string name="collection_alarm_on_device">设备已触发告警</string>
     <string name="collection_finish">所有设备已收集 — 完成</string>
+    <string name="collection_finding_devices">正在查找设备…</string>
     <string name="collection_close_partial">关闭货运并忽略剩余设备</string>
     <plurals name="collection_more_devices_to_find">
         <item quantity="other">还需找到 %1$d 个设备</item>

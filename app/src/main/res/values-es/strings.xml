@@ -73,6 +73,7 @@
     <string name="collection_row_device_id">Dispositivo %1$s</string>
     <string name="collection_alarm_on_device">Alarma en el dispositivo</string>
     <string name="collection_finish">Todos los dispositivos recolectados — finalizar</string>
+    <string name="collection_finding_devices">Buscando dispositivos…</string>
     <string name="collection_close_partial">Cerrar envío sin los dispositivos restantes</string>
     <plurals name="collection_more_devices_to_find">
         <item quantity="one">Falta 1 dispositivo por encontrar</item>
