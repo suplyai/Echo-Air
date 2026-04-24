@@ -69,6 +69,9 @@
     <string name="collection_row_retry">再試行</string>
     <string name="collection_row_device_id">デバイス %1$s</string>
     <string name="collection_alarm_on_device">デバイスでアラームが発生</string>
+    <string name="collection_hint_get_closer">信号を受信するため貨物に近づいてください。</string>
+    <string name="collection_hint_check_device">検索中です。近づくか、デバイスの電源が入っていて近くにあることをご確認ください。</string>
+    <string name="collection_hint_contact_shipper">このデバイスが見つかりません。紛失の可能性がある場合は荷主にご連絡ください。</string>
     <string name="collection_finish">全デバイスの収集完了 — 終了</string>
     <string name="collection_finding_devices">デバイスを検索中…</string>
     <string name="collection_close_partial">残りのデバイスを含めずに貨物を終了</string>

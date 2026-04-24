@@ -72,6 +72,9 @@
     <string name="collection_row_retry">Reintentar</string>
     <string name="collection_row_device_id">Dispositivo %1$s</string>
     <string name="collection_alarm_on_device">Alarma en el dispositivo</string>
+    <string name="collection_hint_get_closer">Acércate al envío para obtener mejor señal.</string>
+    <string name="collection_hint_check_device">Aún buscando. Acércate, o verifica que el dispositivo esté encendido y cerca.</string>
+    <string name="collection_hint_contact_shipper">No se encuentra este dispositivo. Consulta con el remitente si crees que puede faltar.</string>
     <string name="collection_finish">Todos los dispositivos recolectados — finalizar</string>
     <string name="collection_finding_devices">Buscando dispositivos…</string>
     <string name="collection_close_partial">Cerrar envío sin los dispositivos restantes</string>

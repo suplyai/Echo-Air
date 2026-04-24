@@ -50,7 +50,12 @@ class CollectionOrchestrator @Inject constructor(
         val tempMin: Double? = null,
         val tempMax: Double? = null,
         val error: String? = null,
-        val alarm: Boolean = false
+        val alarm: Boolean = false,
+        // Epoch-ms of when this device entered (or re-entered) SEARCHING.
+        // Used by the UI to drive time-staged proximity hints when BLE
+        // takes too long — survives rotation because the orchestrator is
+        // a @Singleton, which the composable's ephemeral timers would not.
+        val searchStartedAt: Long = 0L
     ) {
         val collected: Boolean get() = state == DeviceState.COLLECTED
     }
@@ -81,9 +86,12 @@ class CollectionOrchestrator @Inject constructor(
     fun start(shipmentId: String, expected: List<ExpectedDevice>) {
         if (_state.value.shipmentId == shipmentId && _state.value.running) return
         stop()
+        val searchStart = System.currentTimeMillis()
         _state.value = State(
             shipmentId = shipmentId,
-            devices = expected.map { Device(deviceId = it.deviceId, mac = it.mac) },
+            devices = expected.map {
+                Device(deviceId = it.deviceId, mac = it.mac, searchStartedAt = searchStart)
+            },
             running = true
         )
         scanJob = scope.launch { runScan() }

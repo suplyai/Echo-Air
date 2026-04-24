@@ -5,16 +5,23 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.InfiniteTransition
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.StartOffset
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -29,11 +36,13 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ErrorOutline
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -56,6 +65,8 @@ import app.suply.echoair.R
 import app.suply.echoair.ble.CollectionOrchestrator.Device
 import app.suply.echoair.ble.CollectionOrchestrator.DeviceState
 import app.suply.echoair.ui.haptics.EchoHaptics
+import kotlinx.coroutines.delay
+import timber.log.Timber
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -229,6 +240,11 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
             else -> Unit
         }
     }
+
+    // Per-device proximity-hint level (0 = none, 1/2/3 progressively
+    // stronger). Driven by elapsed SEARCHING time — see [searchHintLevel].
+    val hintLevel = rememberSearchingHintLevel(device)
+
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -248,6 +264,19 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
                 if (device.state == DeviceState.ERROR) {
                     TextButton(onClick = onRetry) { Text(stringResource(R.string.collection_row_retry)) }
                 }
+            }
+
+            // Proximity-hint region. Stays invisible for the first
+            // HINT_LEVEL_1_MS of searching (searching is a normal,
+            // expected state), then fades in progressively stronger
+            // guidance. Hides the moment we leave SEARCHING — the card
+            // collapses smoothly via expand/shrinkVertically.
+            AnimatedVisibility(
+                visible = device.state == DeviceState.SEARCHING && hintLevel > 0,
+                enter = fadeIn(tween(250)) + expandVertically(tween(250)),
+                exit = fadeOut(tween(200)) + shrinkVertically(tween(200))
+            ) {
+                SearchingHint(level = hintLevel)
             }
 
             // Progress bar is indeterminate while connecting (progress == 0)
@@ -308,8 +337,11 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
  * the screen never reads as "hung" during the 2–5 second invisible windows
  * (BLE scan wait, GATT negotiation, /api/echo-scan POST).
  *
- * - SEARCHING: slow concentric radar-pulse ring behind a static glyph.
- *   Loops forever at ~1.6s period. Stops the moment state changes.
+ * - SEARCHING: three concentric radar rings emanate outward, staggered
+ *   600ms apart over an 1800ms loop (Find My-style sweep — conveys
+ *   "reaching out into the environment"). On top of that, the Bluetooth
+ *   glyph breathes 1.0 → 1.03 → 1.0 over a 1500ms cycle so the icon
+ *   itself reads as alive, not just the container.
  * - IN_RANGE: one-shot 1.0 → 1.15 → 1.0 scale pulse + colour nudge; haptic
  *   fires on state entry via LaunchedEffect in DeviceRow.
  * - SYNCING: subtle breathing opacity on the background, ~1.8s period.
@@ -333,16 +365,12 @@ private fun StateIndicator(state: DeviceState, progress: Float) {
 
     val transition = rememberInfiniteTransition(label = "indicatorAmbient")
 
-    // SEARCHING: radar ring scales 1.0 → 1.8 and fades 0.45 → 0.0.
-    val radarScale by transition.animateFloat(
-        initialValue = 1.0f, targetValue = 1.8f,
-        animationSpec = infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart),
-        label = "radarScale"
-    )
-    val radarAlpha by transition.animateFloat(
-        initialValue = 0.45f, targetValue = 0.0f,
-        animationSpec = infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart),
-        label = "radarAlpha"
+    // SEARCHING: bluetooth glyph breathes 1.0 → 1.03 → 1.0 over 1500ms so
+    // the icon itself reads alive, not just the rings around it.
+    val searchBreath by transition.animateFloat(
+        initialValue = 1.0f, targetValue = 1.03f,
+        animationSpec = infiniteRepeatable(tween(750, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "searchBreath"
     )
 
     // SYNCING (pre-progress): background alpha breathes 0.12 → 0.25.
@@ -390,19 +418,15 @@ private fun StateIndicator(state: DeviceState, progress: Float) {
         modifier = Modifier.size(60.dp),
         contentAlignment = Alignment.Center
     ) {
-        // SEARCHING radar ring — rendered behind the main circle.
+        // SEARCHING: three radar rings, phase-offset 0/600/1200ms within
+        // an 1800ms loop, continuously emanating outward from behind the
+        // main circle. Each ring scales 1.0 → 1.8 while fading to zero —
+        // with three live at once, at any instant there's always a ring
+        // mid-sweep, so the motion reads as continuous.
         if (state == DeviceState.SEARCHING) {
-            Box(
-                modifier = Modifier
-                    .size(44.dp)
-                    .graphicsLayer {
-                        scaleX = radarScale
-                        scaleY = radarScale
-                        alpha = radarAlpha
-                    }
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = 0.55f))
-            )
+            RadarRing(color = color, transition = transition, offsetMs = 0)
+            RadarRing(color = color, transition = transition, offsetMs = 600)
+            RadarRing(color = color, transition = transition, offsetMs = 1200)
         }
 
         // COLLECTED glow ring — briefly expands and fades when the tick lands.
@@ -444,13 +468,141 @@ private fun StateIndicator(state: DeviceState, progress: Float) {
                 .background(backgroundAlpha),
             contentAlignment = Alignment.Center
         ) {
-            val iconModifier = if (state == DeviceState.SYNCING && progress <= 0.001f) {
-                Modifier.graphicsLayer { rotationZ = syncRotation }
-            } else {
-                Modifier
+            val iconModifier = when {
+                state == DeviceState.SYNCING && progress <= 0.001f ->
+                    Modifier.graphicsLayer { rotationZ = syncRotation }
+                state == DeviceState.SEARCHING ->
+                    Modifier.graphicsLayer {
+                        scaleX = searchBreath
+                        scaleY = searchBreath
+                    }
+                else -> Modifier
             }
             Icon(icon, contentDescription = null, tint = color, modifier = iconModifier)
         }
+    }
+}
+
+/**
+ * One radar-sweep ring. Scales 1.0 → 1.8 while fading from 0.45 → 0 over
+ * an 1800ms linear loop, with [offsetMs] shifting its phase so a trio of
+ * these (at 0 / 600 / 1200ms) produces a continuous outward-radiating
+ * sweep rather than three synchronised pulses.
+ */
+@Composable
+private fun RadarRing(color: Color, transition: InfiniteTransition, offsetMs: Int) {
+    val scale by transition.animateFloat(
+        initialValue = 1.0f, targetValue = 1.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+            initialStartOffset = StartOffset(offsetMs)
+        ),
+        label = "radarScale_$offsetMs"
+    )
+    val ringAlpha by transition.animateFloat(
+        initialValue = 0.45f, targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+            initialStartOffset = StartOffset(offsetMs)
+        ),
+        label = "radarAlpha_$offsetMs"
+    )
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+                alpha = ringAlpha
+            }
+            .clip(CircleShape)
+            .background(color.copy(alpha = 0.55f))
+    )
+}
+
+// Proximity-hint thresholds, in elapsed SEARCHING milliseconds.
+// Tuned from the brief; expected to be revisited after field data —
+// 15s might be too eager in a warehouse where walking to the cargo
+// stack is a normal part of the flow, or too late if signal is lost.
+// Kept together here so a single-line edit is all that's needed to
+// retune. Timber logs fire on each level reached for field measurement.
+private const val HINT_LEVEL_1_MS = 15_000L   // "Get closer."
+private const val HINT_LEVEL_2_MS = 40_000L   // "Still searching. Check device."
+private const val HINT_LEVEL_3_MS = 90_000L   // "Contact the shipper."
+
+/**
+ * Per-device proximity-hint level driven by how long the device has been
+ * SEARCHING. Returns 0 while the state isn't SEARCHING or while we're
+ * inside the first quiet window; 1/2/3 as each threshold is crossed.
+ *
+ * Time source is [Device.searchStartedAt] (wall-clock ms), set by the
+ * orchestrator when the device enters SEARCHING. This means the hint
+ * level survives Activity recreation / rotation — if the user rotates
+ * after 20s of searching, the hint shows on reappearance rather than
+ * restarting the 15s timer from zero.
+ */
+@Composable
+private fun rememberSearchingHintLevel(device: Device): Int {
+    var level by remember(device.deviceId) { mutableIntStateOf(0) }
+    LaunchedEffect(device.deviceId, device.state, device.searchStartedAt) {
+        if (device.state != DeviceState.SEARCHING || device.searchStartedAt <= 0L) {
+            level = 0
+            return@LaunchedEffect
+        }
+        val thresholds = longArrayOf(HINT_LEVEL_1_MS, HINT_LEVEL_2_MS, HINT_LEVEL_3_MS)
+        // Fast-forward if already past a threshold (e.g. after rotation).
+        val alreadyElapsed = System.currentTimeMillis() - device.searchStartedAt
+        var initial = 0
+        for ((i, t) in thresholds.withIndex()) {
+            if (alreadyElapsed >= t) initial = i + 1 else break
+        }
+        if (initial > 0) {
+            level = initial
+            Timber.d(
+                "search-hint L%d entered for %s (already at %dms)",
+                initial, device.deviceId, alreadyElapsed
+            )
+        }
+        // Schedule the remaining thresholds.
+        for (i in initial until thresholds.size) {
+            val remain = thresholds[i] - (System.currentTimeMillis() - device.searchStartedAt)
+            if (remain > 0) delay(remain)
+            level = i + 1
+            Timber.d(
+                "search-hint L%d reached for %s at %dms",
+                level, device.deviceId,
+                System.currentTimeMillis() - device.searchStartedAt
+            )
+        }
+    }
+    return level
+}
+
+@Composable
+private fun SearchingHint(level: Int) {
+    val text = when (level) {
+        1 -> stringResource(R.string.collection_hint_get_closer)
+        2 -> stringResource(R.string.collection_hint_check_device)
+        else -> stringResource(R.string.collection_hint_contact_shipper)
+    }
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(top = 4.dp)
+    ) {
+        Icon(
+            Icons.Outlined.Lightbulb,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
