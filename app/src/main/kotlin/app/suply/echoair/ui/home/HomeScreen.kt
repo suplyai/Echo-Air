@@ -24,6 +24,7 @@ import app.suply.echoair.R
 import app.suply.echoair.ui.locale.AppLocale
 import app.suply.echoair.ui.locale.LanguagePickerSheet
 import app.suply.echoair.ui.locale.LocaleManager
+import app.suply.echoair.ui.locale.findActivity
 
 /**
  * Pilot-shape home screen: two CTAs only, plus a subtle language
@@ -130,6 +131,10 @@ fun HomeScreen(
             onSelect = { locale ->
                 showLanguageSheet = false
                 LocaleManager.apply(appContext, locale)
+                // Force Activity recreate() so attachBaseContext re-reads the
+                // stored tag and wraps Resources with the new Locale — without
+                // this the visible strings don't swap until next cold start.
+                context.findActivity()?.recreate()
             },
             onDismiss = { showLanguageSheet = false }
         )

@@ -1,5 +1,6 @@
 package app.suply.echoair.ui
 
+import android.content.Context
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -23,6 +24,7 @@ import app.suply.echoair.ui.collection.CollectionScreen
 import app.suply.echoair.ui.home.HomeScreen
 import app.suply.echoair.ui.locale.FirstLaunchLanguageGate
 import app.suply.echoair.ui.locale.LocaleManager
+import app.suply.echoair.ui.locale.wrapForLocale
 import app.suply.echoair.ui.settings.SettingsScreen
 import app.suply.echoair.ui.web.WebScreen
 import app.suply.echoair.ui.web.WebViewBridge
@@ -41,6 +43,17 @@ import dagger.hilt.android.AndroidEntryPoint
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    // AppCompatDelegate.setApplicationLocales only *persists* the choice on a
+    // Compose-only ComponentActivity — it doesn't actually wrap the Activity's
+    // Resources the way AppCompatActivity would. So we own the apply here:
+    // on every (re)creation, read the stored tag and hand super a Context
+    // whose Configuration carries the chosen Locale. Pair with recreate()
+    // in the language picker callers for an immediate UI switch.
+    override fun attachBaseContext(newBase: Context) {
+        val stored = LocaleManager.storedLocale(newBase)
+        super.attachBaseContext(if (stored != null) newBase.wrapForLocale(stored) else newBase)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {

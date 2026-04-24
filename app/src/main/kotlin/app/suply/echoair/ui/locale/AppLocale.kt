@@ -65,34 +65,57 @@ object LocaleManager {
     }
 
     /**
-     * Apply [locale] across the app immediately. Persists in two places:
-     *   - AppCompatDelegate (the primary, OS-aware path)
-     *   - Our own SharedPreferences (the fallback, applied at next start)
+     * Apply [locale] across the app immediately. The write is the
+     * authoritative part — the UI still needs Activity.recreate() to
+     * pick up the new Configuration, which the caller is responsible
+     * for firing (see HomeScreen + FirstLaunchLanguageGate). We also
+     * notify AppCompatDelegate for the API 33+ Settings surfacing and
+     * to keep that library's internal cache coherent, but we no longer
+     * trust it as the sole persistence path.
      *
-     * Safe to call from any thread — AppCompatDelegate hops to the main
-     * thread internally to trigger Activity recreation where required.
+     * Safe to call from any thread.
      */
     fun apply(context: Context, locale: AppLocale) {
-        Timber.i("LocaleManager.apply(%s) — primary path via AppCompatDelegate", locale.tag)
-        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(locale.tag))
+        Timber.i("LocaleManager.apply(%s) — writing prefs + delegate", locale.tag)
+        // Our own store is the source of truth that MainActivity.
+        // attachBaseContext reads on each recreation.
         prefs(context).edit().putString(KEY_CHOSEN_TAG, locale.tag).apply()
+        // Best-effort: inform AppCompat + the platform LocaleManager.
+        // Ignored silently by some OEM skins; recreate() by the caller
+        // guarantees the UI picks up the change regardless.
+        runCatching {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(locale.tag))
+        }
     }
 
     /**
-     * Re-apply the user's stored choice at app start. No-op if the user
-     * has never chosen (first-launch gate handles that path), or if the
-     * AppCompatDelegate state already matches.
+     * The locale the user last chose, or null if they never chose one.
+     * Read by Activity.attachBaseContext on every (re)creation so the
+     * Resources resolve against the right language with no dependency
+     * on AppCompat or platform LocaleManager doing the right thing.
+     */
+    fun storedLocale(context: Context): AppLocale? {
+        val tag = prefs(context).getString(KEY_CHOSEN_TAG, null) ?: return null
+        return AppLocale.fromTag(tag)
+    }
+
+    /**
+     * Re-apply the stored choice's side-effects (AppCompatDelegate,
+     * platform LocaleManager) at app start. The authoritative Context
+     * wrapping happens in MainActivity.attachBaseContext; this call is
+     * purely for keeping AppCompat's internal state coherent.
      */
     fun restoreFromPreferences(context: Context) {
-        val storedTag = prefs(context).getString(KEY_CHOSEN_TAG, null) ?: return
-        val stored = AppLocale.fromTag(storedTag) ?: return
+        val stored = storedLocale(context) ?: return
         val applied = current()
         if (applied == stored) {
-            Timber.d("LocaleManager.restore: already %s, skipping", stored.tag)
+            Timber.d("LocaleManager.restore: AppCompatDelegate already %s, skipping", stored.tag)
             return
         }
-        Timber.i("LocaleManager.restore: applying stored %s (was %s)", stored.tag, applied?.tag)
-        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(stored.tag))
+        Timber.i("LocaleManager.restore: delegating %s (was %s)", stored.tag, applied?.tag)
+        runCatching {
+            AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(stored.tag))
+        }
     }
 
     fun hasConfirmedFirstLaunch(context: Context): Boolean =

@@ -46,6 +46,7 @@ fun FirstLaunchLanguageGate(
                     LocaleManager.apply(appContext, picked)
                     LocaleManager.markFirstLaunchConfirmed(context)
                     onAcknowledged()
+                    context.findActivity()?.recreate()
                 },
                 onDismiss = {
                     showPicker = false
@@ -70,6 +71,7 @@ fun FirstLaunchLanguageGate(
                 LocaleManager.apply(appContext, picked)
                 LocaleManager.markFirstLaunchConfirmed(context)
                 onAcknowledged()
+                context.findActivity()?.recreate()
             },
             onDismiss = { showPicker = false }
         )
@@ -104,6 +106,10 @@ fun FirstLaunchLanguageGate(
             TextButton(onClick = {
                 LocaleManager.markFirstLaunchConfirmed(context)
                 onAcknowledged()
+                // prefs already written at the top of the gate; recreate()
+                // forces attachBaseContext to re-wrap Resources with the
+                // detected locale so the home screen renders in it.
+                context.findActivity()?.recreate()
             }) {
                 Text(stringResourceIn(context, detected, R.string.language_first_launch_yes))
             }
