@@ -178,6 +178,8 @@ class ShipmentRepository @Inject constructor(
                 awbNumber = s.airwayBillNumber,
                 originIata = s.airOriginIata,
                 destIata = s.airDestIata,
+                originCity = s.airOriginCity,
+                destCity = s.airDestCity,
                 commodityName = s.cargoProfile?.name,
                 commodityMinTemp = s.cargoProfile?.minTemp,
                 commodityMaxTemp = s.cargoProfile?.maxTemp,

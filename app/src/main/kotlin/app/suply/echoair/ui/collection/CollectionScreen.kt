@@ -129,9 +129,10 @@ fun CollectionScreen(
                 .padding(padding)
         ) {
             ShipmentHeader(
-                awb = shipment?.awbNumber ?: "",
-                origin = shipment?.originIata,
-                destination = shipment?.destIata,
+                originIata = shipment?.originIata,
+                originCity = shipment?.originCity,
+                destIata = shipment?.destIata,
+                destCity = shipment?.destCity,
                 commodity = shipment?.commodityName,
                 minTemp = shipment?.commodityMinTemp,
                 maxTemp = shipment?.commodityMaxTemp,
@@ -188,11 +189,33 @@ fun CollectionScreen(
     }
 }
 
+/**
+ * Shipment identity header. The AWB is intentionally absent from this
+ * block — it's already pinned in the TopAppBar title; showing it twice
+ * within the same few vertical centimetres (as in v0.4.4 and earlier)
+ * was pure noise. Instead the header now carries the information a
+ * consignee actually needs to orient themselves at destination:
+ *
+ *   Mixed Cut Flowers                ← commodity (titleLarge)
+ *   Lima (LIM) → Amsterdam (AMS)    ← route w/ city names
+ *   -20 – 2°C                        ← temp profile, if present
+ *   Collected: 0 of 2                ← always shown
+ *
+ * Every row above the count degrades gracefully — if the shipment has
+ * no commodity / no route / no temp bounds, those rows are simply
+ * omitted. Worst case (all unknown) the user still sees "Collected:
+ * N of M", which is the one line they always need.
+ *
+ * City names come from the unified shipment helper
+ * (air_origin_city / air_dest_city in ShipmentDto). IATA codes render
+ * alone as a fallback when city is missing.
+ */
 @Composable
 private fun ShipmentHeader(
-    awb: String,
-    origin: String?,
-    destination: String?,
+    originIata: String?,
+    originCity: String?,
+    destIata: String?,
+    destCity: String?,
     commodity: String?,
     minTemp: Double?,
     maxTemp: Double?,
@@ -206,15 +229,27 @@ private fun ShipmentHeader(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(awb, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
-        val route = listOfNotNull(origin, destination).joinToString(" → ")
-        if (route.isNotBlank()) Text(route, style = MaterialTheme.typography.bodyMedium)
+        commodity?.takeIf { it.isNotBlank() }?.let { name ->
+            Text(
+                name,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
 
-        val profile = listOfNotNull(
-            commodity,
-            if (minTemp != null && maxTemp != null) "${minTemp}–${maxTemp}°C" else null
-        ).joinToString(", ")
-        if (profile.isNotBlank()) Text(profile, style = MaterialTheme.typography.bodyMedium)
+        val originStr = formatAirport(originIata, originCity)
+        val destStr = formatAirport(destIata, destCity)
+        val route = listOfNotNull(originStr, destStr).joinToString(" → ")
+        if (route.isNotBlank()) {
+            Text(route, style = MaterialTheme.typography.bodyMedium)
+        }
+
+        if (minTemp != null && maxTemp != null) {
+            Text(
+                "${minTemp}–${maxTemp}°C",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
 
         Spacer(Modifier.height(4.dp))
         Text(
@@ -222,6 +257,21 @@ private fun ShipmentHeader(
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+/**
+ * "Lima (LIM)" when both are present, "LIM" or "Lima" when only one is,
+ * null when neither — lets the caller skip the row entirely on null.
+ */
+private fun formatAirport(code: String?, city: String?): String? {
+    val c = code?.takeIf { it.isNotBlank() }
+    val n = city?.takeIf { it.isNotBlank() }
+    return when {
+        n != null && c != null -> "$n ($c)"
+        c != null -> c
+        n != null -> n
+        else -> null
     }
 }
 
@@ -266,13 +316,13 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
                 }
             }
 
-            // Proximity-hint region. Stays invisible for the first
-            // HINT_LEVEL_1_MS of searching (searching is a normal,
-            // expected state), then fades in progressively stronger
-            // guidance. Hides the moment we leave SEARCHING — the card
-            // collapses smoothly via expand/shrinkVertically.
+            // Proximity-hint region. Visible for the entire duration of
+            // SEARCHING — L0 is an ambient, preemptive prompt ("Hold
+            // your phone near the shipment") that appears immediately,
+            // escalating in place at 5 / 20 / 60 s. Collapses smoothly
+            // via expand/shrinkVertically the moment we leave SEARCHING.
             AnimatedVisibility(
-                visible = device.state == DeviceState.SEARCHING && hintLevel > 0,
+                visible = device.state == DeviceState.SEARCHING,
                 enter = fadeIn(tween(250)) + expandVertically(tween(250)),
                 exit = fadeOut(tween(200)) + shrinkVertically(tween(200))
             ) {
@@ -523,14 +573,20 @@ private fun RadarRing(color: Color, transition: InfiniteTransition, offsetMs: In
 }
 
 // Proximity-hint thresholds, in elapsed SEARCHING milliseconds.
-// Tuned from the brief; expected to be revisited after field data —
-// 15s might be too eager in a warehouse where walking to the cargo
-// stack is a normal part of the flow, or too late if signal is lost.
-// Kept together here so a single-line edit is all that's needed to
-// retune. Timber logs fire on each level reached for field measurement.
-private const val HINT_LEVEL_1_MS = 15_000L   // "Get closer."
-private const val HINT_LEVEL_2_MS = 40_000L   // "Still searching. Check device."
-private const val HINT_LEVEL_3_MS = 90_000L   // "Contact the shipper."
+//
+// Level 0 is the always-on ambient prompt ("Hold your phone near the
+// shipment.") — no timer; it's visible from the first frame of
+// SEARCHING, on the theory that preemptive guidance beats reactive
+// guidance, and that v0.4.4's 15s silence was long enough for users
+// to start doubting whether the app was working at all.
+//
+// Levels 1/2/3 escalate from there. Tuned from field feedback; kept
+// together here so a single-line edit retunes them. Timber.d fires on
+// each level reached so we can measure in the field whether 5s is
+// still too eager / 60s too patient.
+private const val HINT_LEVEL_1_MS = 5_000L    // "Move closer — devices are usually inside the ULD."
+private const val HINT_LEVEL_2_MS = 20_000L   // "Still searching. Check the device is inside the cargo and powered."
+private const val HINT_LEVEL_3_MS = 60_000L   // "Can't find this device. Contact your shipper if it may be missing."
 
 /**
  * Per-device proximity-hint level driven by how long the device has been
@@ -580,13 +636,51 @@ private fun rememberSearchingHintLevel(device: Device): Int {
     return level
 }
 
+/**
+ * Renders the per-device proximity hint in one of four forms:
+ *
+ *   L0 (ambient, 0s+): muted grey "Hold your phone near the shipment."
+ *       — preemptive guidance, visible from the first frame.
+ *   L1 (5s):  warmer accent colour, the lightbulb gently pulses.
+ *   L2 (20s): same colour treatment, escalated copy.
+ *   L3 (60s): same colour treatment, final escalation — contact the
+ *       shipper.
+ *
+ * Colour shift (onSurfaceVariant → primary) animates over 300ms so the
+ * state change reads as a gentle shift of urgency, not a jarring swap.
+ * The icon pulses only at L ≥ 1 — at L0 it's still, matching the
+ * "ambient, not a hint" framing.
+ */
 @Composable
 private fun SearchingHint(level: Int) {
     val text = when (level) {
+        0 -> stringResource(R.string.collection_hint_ambient)
         1 -> stringResource(R.string.collection_hint_get_closer)
         2 -> stringResource(R.string.collection_hint_check_device)
         else -> stringResource(R.string.collection_hint_contact_shipper)
     }
+
+    val color by animateColorAsState(
+        targetValue = if (level >= 1) MaterialTheme.colorScheme.primary
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        label = "hintColor"
+    )
+
+    // Subtle pulse on the lightbulb at L ≥ 1. The transition runs
+    // continuously but we only apply its value when escalated, so L0
+    // stays visually still.
+    val pulse = rememberInfiniteTransition(label = "hintIconPulse")
+    val pulseScale by pulse.animateFloat(
+        initialValue = 1.0f, targetValue = 1.18f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(700, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "hintIconPulseScale"
+    )
+    val iconScale = if (level >= 1) pulseScale else 1.0f
+
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -595,13 +689,18 @@ private fun SearchingHint(level: Int) {
         Icon(
             Icons.Outlined.Lightbulb,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.size(16.dp)
+            tint = color,
+            modifier = Modifier
+                .size(16.dp)
+                .graphicsLayer {
+                    scaleX = iconScale
+                    scaleY = iconScale
+                }
         )
         Text(
             text = text,
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = color
         )
     }
 }

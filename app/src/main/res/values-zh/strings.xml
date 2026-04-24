@@ -69,8 +69,9 @@
     <string name="collection_row_retry">重试</string>
     <string name="collection_row_device_id">设备 %1$s</string>
     <string name="collection_alarm_on_device">设备已触发告警</string>
-    <string name="collection_hint_get_closer">靠近货运以获得更好的信号。</string>
-    <string name="collection_hint_check_device">仍在搜索。请靠近，或检查设备是否已上电并在附近。</string>
+    <string name="collection_hint_ambient">请将手机靠近货运。</string>
+    <string name="collection_hint_get_closer">请靠近 — 设备通常在 ULD 内部。</string>
+    <string name="collection_hint_check_device">仍在搜索。请确认设备位于货物内部并已上电。</string>
     <string name="collection_hint_contact_shipper">未找到此设备。如认为可能缺失，请联系发货方。</string>
     <string name="collection_finish">所有设备已收集 — 完成</string>
     <string name="collection_finding_devices">正在查找设备…</string>

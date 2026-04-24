@@ -10,7 +10,11 @@ import androidx.room.RoomDatabase
         TemperatureRecord::class,
         PendingUpload::class
     ],
-    version = 1,
+    // v2: CachedShipment adds originCity / destCity. DataModule uses
+    //     .fallbackToDestructiveMigration(), so the cache is rebuilt on
+    //     upgrade — acceptable because the app re-fetches shipments
+    //     from the API on every lookup anyway.
+    version = 2,
     exportSchema = false
 )
 abstract class EchoAirDatabase : RoomDatabase() {

@@ -10,6 +10,12 @@ data class CachedShipment(
     val awbNumber: String,
     val originIata: String?,
     val destIata: String?,
+    // City names for the origin/destination airports. Optional; when
+    // present, the Collection header renders "Lima (LIM) → Amsterdam
+    // (AMS)" instead of a bare IATA pair. Backend emits these via
+    // air_origin_city / air_dest_city on ShipmentDto.
+    val originCity: String?,
+    val destCity: String?,
     val commodityName: String?,
     val commodityMinTemp: Double?,
     val commodityMaxTemp: Double?,

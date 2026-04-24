@@ -95,12 +95,15 @@
     <!-- "Device 633640" — %1$s is the device ID, do not translate the ID itself -->
     <string name="collection_row_device_id">Device %1$s</string>
     <string name="collection_alarm_on_device">Alarm on device</string>
-    <!-- Proximity hints: appear inline on a device card after the device
-         has been SEARCHING for a while. Three progressive levels, each
-         only shown if the previous wasn't enough to find the device. -->
-    <string name="collection_hint_get_closer">Get closer to the shipment for best signal.</string>
-    <string name="collection_hint_check_device">Still searching. Move closer, or check the device is powered and nearby.</string>
-    <string name="collection_hint_contact_shipper">Not finding this device. Check with the shipper if you think it may be missing.</string>
+    <!-- Proximity hints: appear inline on each SEARCHING device card.
+         Level 0 is an always-on ambient prompt visible from the moment
+         searching starts (preemptive, not reactive). Levels 1/2/3
+         escalate at 5 / 20 / 60 seconds if the device still isn't
+         found — each only shown if the previous didn't resolve it. -->
+    <string name="collection_hint_ambient">Hold your phone near the shipment.</string>
+    <string name="collection_hint_get_closer">Move closer — devices are usually inside the ULD.</string>
+    <string name="collection_hint_check_device">Still searching. Check the device is inside the cargo and powered.</string>
+    <string name="collection_hint_contact_shipper">Can\'t find this device. Contact your shipper if it may be missing.</string>
     <!-- Bottom bar -->
     <string name="collection_finish">All devices collected — finish</string>
     <string name="collection_finding_devices">Finding devices…</string>
