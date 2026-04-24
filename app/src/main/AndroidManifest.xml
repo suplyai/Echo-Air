@@ -22,9 +22,17 @@
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
 
     <!--
-      Required for BLE scanning on all Android versions in practice. The app
-      itself does not read the user's location — see the rationale string
-      that the runtime request surfaces.
+      Required for BLE scanning on all Android versions in practice.
+      Since v0.4.6 these permissions are ALSO used by LocationCapture
+      to attach a one-shot FusedLocation fix to the /api/echo-scan
+      payload at the moment of each successful device collection, so
+      the shipment timeline can render where each scan happened. This
+      use is gated behind a separate, explicit opt-in dialog on the
+      Collection screen — granting FINE_LOCATION for BLE does NOT grant
+      consent for timeline capture; the user has to accept the
+      rationale first. Decline / silent failure / missing Play Services
+      all degrade to "send the scan without location" with no visible
+      error. See app.suply.echoair.location.LocationCapture.
     -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />

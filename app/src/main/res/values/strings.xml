@@ -122,6 +122,12 @@
     <string name="collection_close_dialog_body_all">All expected devices have been collected.</string>
     <string name="collection_close_dialog_confirm">Close shipment</string>
 
+    <!-- ============ Location opt-in (one-time rationale on Collection screen entry) ============ -->
+    <string name="location_rationale_title">Attach location to each scan?</string>
+    <string name="location_rationale_body">Echo Air attaches the scan location to the shipment\'s audit trail, so the timeline shows where each device was scanned. Your location is only captured when you scan a device.</string>
+    <string name="location_rationale_accept">Allow</string>
+    <string name="location_rationale_decline">Not now</string>
+
     <!-- ============ Failure dialogs (CaptureViewModel.Failure → copy) ============ -->
     <string name="failure_unreachable_title">Can\'t reach Suply servers</string>
     <string name="failure_unreachable_body">Check your internet connection, then try again.</string>

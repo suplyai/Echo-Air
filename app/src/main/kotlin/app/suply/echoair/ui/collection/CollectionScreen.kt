@@ -64,6 +64,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import app.suply.echoair.R
 import app.suply.echoair.ble.CollectionOrchestrator.Device
 import app.suply.echoair.ble.CollectionOrchestrator.DeviceState
+import app.suply.echoair.location.LocationRationaleDialog
 import app.suply.echoair.ui.haptics.EchoHaptics
 import kotlinx.coroutines.delay
 import timber.log.Timber
@@ -101,6 +102,16 @@ fun CollectionScreen(
     }
 
     var confirmClose by remember { mutableStateOf(false) }
+
+    // One-time opt-in for location capture on successful scans. Shown on
+    // first Collection-screen entry after v0.4.6 regardless of whether
+    // the BLE permission flow above has already granted FINE_LOCATION —
+    // that grant is a BLE-scanning consent, this dialog is the separate,
+    // explicit consent for recording the location on the shipment's
+    // audit trail. See [LocationCapture] for the privacy model.
+    var showLocationRationale by remember {
+        mutableStateOf(!vm.locationCapture.isAcknowledged())
+    }
 
     Scaffold(
         topBar = {
@@ -149,6 +160,19 @@ fun CollectionScreen(
                 }
             }
         }
+    }
+
+    if (showLocationRationale) {
+        LocationRationaleDialog(
+            onAccept = {
+                vm.locationCapture.setOptedIn(true)
+                showLocationRationale = false
+            },
+            onDecline = {
+                vm.locationCapture.setOptedIn(false)
+                showLocationRationale = false
+            }
+        )
     }
 
     if (confirmClose) {

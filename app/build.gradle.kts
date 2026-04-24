@@ -15,8 +15,8 @@ android {
         applicationId = "app.suply.echoair"
         minSdk = 30
         targetSdk = 35
-        versionCode = 30
-        versionName = "0.4.5"
+        versionCode = 31
+        versionName = "0.4.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
@@ -129,6 +129,8 @@ dependencies {
     implementation(libs.camerax.view)
 
     implementation(libs.mlkit.barcode.scanning)
+
+    implementation(libs.play.services.location)
 
     implementation(libs.androidx.webkit)
 

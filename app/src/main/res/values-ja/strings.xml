@@ -87,6 +87,11 @@
     <string name="collection_close_dialog_body_all">予定されていた全デバイスを収集しました。</string>
     <string name="collection_close_dialog_confirm">貨物を終了</string>
 
+    <string name="location_rationale_title">各スキャンに位置情報を付与しますか?</string>
+    <string name="location_rationale_body">Echo Air はスキャン位置を貨物の監査記録に付与し、各デバイスがどこでスキャンされたかをタイムラインに表示します。位置情報はデバイスをスキャンした瞬間のみ取得されます。</string>
+    <string name="location_rationale_accept">許可</string>
+    <string name="location_rationale_decline">後で</string>
+
     <string name="failure_unreachable_title">Suply サーバーに接続できません</string>
     <string name="failure_unreachable_body">インターネット接続を確認してから再試行してください。</string>
     <string name="failure_timeout_title">Suply サーバーが応答しません</string>

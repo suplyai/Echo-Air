@@ -92,6 +92,11 @@
     <string name="collection_close_dialog_body_all">Se han recolectado todos los dispositivos esperados.</string>
     <string name="collection_close_dialog_confirm">Cerrar envío</string>
 
+    <string name="location_rationale_title">¿Adjuntar ubicación a cada escaneo?</string>
+    <string name="location_rationale_body">Echo Air adjunta la ubicación del escaneo al registro del envío, para que la línea de tiempo muestre dónde se escaneó cada dispositivo. Tu ubicación solo se captura cuando escaneas un dispositivo.</string>
+    <string name="location_rationale_accept">Permitir</string>
+    <string name="location_rationale_decline">Ahora no</string>
+
     <string name="failure_unreachable_title">No se puede conectar con los servidores de Suply</string>
     <string name="failure_unreachable_body">Revisa tu conexión a internet e intenta nuevamente.</string>
     <string name="failure_timeout_title">Los servidores de Suply no responden</string>

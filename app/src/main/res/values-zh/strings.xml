@@ -87,6 +87,11 @@
     <string name="collection_close_dialog_body_all">所有预期设备均已收集完毕。</string>
     <string name="collection_close_dialog_confirm">关闭货运</string>
 
+    <string name="location_rationale_title">是否为每次扫描附加位置?</string>
+    <string name="location_rationale_body">Echo Air 会将扫描位置附加到货运的审计记录，以便时间线显示每台设备的扫描地点。仅在您扫描设备时捕获位置。</string>
+    <string name="location_rationale_accept">允许</string>
+    <string name="location_rationale_decline">暂不</string>
+
     <string name="failure_unreachable_title">无法连接到 Suply 服务器</string>
     <string name="failure_unreachable_body">请检查网络连接后重试。</string>
     <string name="failure_timeout_title">Suply 服务器未响应</string>

@@ -153,7 +153,32 @@ data class EchoScanRequest(
      * the raw values from the device clock, and the backend's fusion
      * layer applies the correction against waybill + Hubble scans.
      */
-    @SerialName("device_clock_offset_seconds") val deviceClockOffsetSeconds: Long? = null
+    @SerialName("device_clock_offset_seconds") val deviceClockOffsetSeconds: Long? = null,
+    /**
+     * Consignee location at the moment this device was successfully
+     * collected. Optional — omitted whenever the user has declined the
+     * opt-in, the OS permission is not granted, the phone doesn't have
+     * Play Services, or the fix timed out. Backend silently skips
+     * persisting location when the field is absent, so this rolls out
+     * zero-coordination ahead of the Suply-side timeline event work.
+     */
+    val location: LocationDto? = null
+)
+
+/**
+ * Point-in-time location fix attached to a single /api/echo-scan POST.
+ * See [app.suply.echoair.location.LocationCapture] for how and when
+ * this is populated (one-shot getCurrentLocation at the moment of
+ * successful GATT collection, not continuous tracking).
+ */
+@Serializable
+data class LocationDto(
+    val latitude: Double,
+    val longitude: Double,
+    /** Horizontal accuracy radius in metres — what FusedLocation returns natively. */
+    @SerialName("accuracy_m") val accuracyM: Float,
+    /** ISO-8601 UTC instant, e.g. "2026-04-24T11:42:00.000Z". */
+    @SerialName("captured_at") val capturedAt: String
 )
 
 @Serializable

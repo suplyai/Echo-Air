@@ -1,10 +1,12 @@
 package app.suply.echoair.ble
 
 import app.suply.echoair.data.ShipmentRepository
+import app.suply.echoair.location.LocationCapture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -32,7 +34,8 @@ import javax.inject.Singleton
 class CollectionOrchestrator @Inject constructor(
     private val scanner: BleScanner,
     private val connection: BleConnectionManager,
-    private val repo: ShipmentRepository
+    private val repo: ShipmentRepository,
+    private val locationCapture: LocationCapture
 ) {
     enum class DeviceState { SEARCHING, IN_RANGE, SYNCING, COLLECTED, MISSING, ERROR }
 
@@ -164,15 +167,27 @@ class CollectionOrchestrator @Inject constructor(
             }
             try {
                 updateDevice(deviceId) { it.copy(state = DeviceState.SYNCING, progress = 0f) }
+                // Kick off location capture in parallel with the GATT
+                // read. FusedLocation usually resolves in < 1s when a
+                // recent fix exists, and the GATT log download takes
+                // 3–10s — so by the time we're ready to POST, the
+                // location is almost always already waiting. If it
+                // isn't (opted out, permission missing, timeout,
+                // Play Services absent), await() returns null and we
+                // POST without it. See [LocationCapture] for the
+                // privacy model.
+                val locationDeferred = scope.async { locationCapture.captureOnce() }
                 val result = connection.downloadLog(beacon.mac) { progress ->
                     val frac = if (progress.total == 0) 0f else progress.current / progress.total.toFloat()
                     updateDevice(deviceId) { it.copy(progress = frac) }
                 }
                 val readings = result.records
+                val location = locationDeferred.await()
                 val resp = repo.submitRecords(
                     deviceId = deviceId,
                     records = readings,
-                    deviceClockOffsetSeconds = result.deviceClockOffsetSeconds
+                    deviceClockOffsetSeconds = result.deviceClockOffsetSeconds,
+                    location = location
                 )
                 val tempMin = readings.minOfOrNull { it.temperature }
                 val tempMax = readings.maxOfOrNull { it.temperature }

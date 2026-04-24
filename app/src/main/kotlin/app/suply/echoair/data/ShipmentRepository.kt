@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.work.WorkManager
 import app.suply.echoair.data.api.EchoScanRequest
 import app.suply.echoair.data.api.EchoScanResponse
+import app.suply.echoair.data.api.LocationDto
 import app.suply.echoair.data.api.ReadingDto
 import app.suply.echoair.data.api.ShipmentDeviceDto
 import app.suply.echoair.data.api.ShipmentDto
@@ -128,7 +129,8 @@ class ShipmentRepository @Inject constructor(
     suspend fun submitRecords(
         deviceId: String,
         records: List<ReadingDto>,
-        deviceClockOffsetSeconds: Long? = null
+        deviceClockOffsetSeconds: Long? = null,
+        location: LocationDto? = null
     ): EchoScanResponse? {
         val rows = records.map {
             TemperatureRecord(
@@ -143,7 +145,8 @@ class ShipmentRepository @Inject constructor(
         val request = EchoScanRequest(
             deviceId = deviceId,
             temperatureRecords = records,
-            deviceClockOffsetSeconds = deviceClockOffsetSeconds
+            deviceClockOffsetSeconds = deviceClockOffsetSeconds,
+            location = location
         )
         return try {
             val resp = api.echoScan(request)

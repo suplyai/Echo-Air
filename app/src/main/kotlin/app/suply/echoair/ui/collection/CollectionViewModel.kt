@@ -9,6 +9,7 @@ import app.suply.echoair.ble.CollectionOrchestrator
 import app.suply.echoair.ble.service.CollectionScanService
 import app.suply.echoair.data.ShipmentRepository
 import app.suply.echoair.data.db.CachedShipment
+import app.suply.echoair.location.LocationCapture
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -20,7 +21,11 @@ import javax.inject.Inject
 class CollectionViewModel @Inject constructor(
     app: Application,
     private val repo: ShipmentRepository,
-    private val orchestrator: CollectionOrchestrator
+    private val orchestrator: CollectionOrchestrator,
+    // Exposed to the Collection screen so the one-time LocationRationaleDialog
+    // can read the acknowledgment state and write the opt-in choice. The
+    // capture call itself happens inside the orchestrator.
+    val locationCapture: LocationCapture
 ) : AndroidViewModel(app) {
 
     val state = orchestrator.state
