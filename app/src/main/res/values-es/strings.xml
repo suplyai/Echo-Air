@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Echo Air — Español (LATAM, air-freight industry terminology).
+  Industry conventions: AWB acronym kept in body copy, "Guía Aérea"
+  spelled out for headers / formal labels. "Consignatario" / "Embarcador"
+  / "Agente de carga" per freight forwarder usage in PE/CO/EC/CL.
+-->
+<resources>
+    <string name="app_name">Echo Air</string>
+
+    <string name="home_title">Echo Air</string>
+    <string name="home_cta_scan_qr_title">Escanear código QR</string>
+    <string name="home_cta_scan_qr_body">En el dispositivo Echo Air o en la etiqueta del envío.</string>
+    <string name="home_cta_enter_awb">Ingresar AWB manualmente</string>
+    <string name="home_settings_cd">Ajustes</string>
+    <string name="home_language_cd">Cambiar idioma</string>
+    <string name="home_debug_scan_document">[debug] Escanear documento (OCR)</string>
+
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_battery_optimisation">Desactivar optimización de batería</string>
+    <string name="settings_language">Idioma</string>
+    <string name="settings_debug_run_spike">Ejecutar spike kbeaconlib2 (debug)</string>
+
+    <string name="language_picker_title">Idioma</string>
+    <string name="language_name_en">English</string>
+    <string name="language_name_es">Español</string>
+    <string name="language_name_zh">简体中文</string>
+    <string name="language_name_ja">日本語</string>
+    <string name="language_first_launch_set_to">Hemos configurado el idioma en %1$s.</string>
+    <string name="language_first_launch_question">¿Es correcto?</string>
+    <string name="language_first_launch_yes">Sí, continuar</string>
+    <string name="language_first_launch_change">Cambiar idioma</string>
+
+    <string name="capture_title_qr">Escanear QR del dispositivo</string>
+    <string name="capture_title_document">Escanear documento</string>
+    <string name="capture_document_button">Capturar</string>
+    <string name="capture_permission_grant">Conceder permiso de cámara</string>
+
+    <string name="awb_title">Ingresar AWB</string>
+    <string name="awb_heading">Ingresa el número de guía aérea (AWB) de 11 dígitos</string>
+    <string name="awb_subheading">Prefijo de aerolínea de 3 dígitos, luego serial de 8 dígitos.</string>
+    <string name="awb_unknown_prefix">Prefijo de aerolínea desconocido.</string>
+    <string name="awb_check_digit_mismatch">El dígito de control no coincide — revisa el último dígito.</string>
+    <string name="awb_check_digit_mismatch_expected">El dígito de control no coincide — revisa el último dígito (se esperaba %1$d).</string>
+    <string name="awb_continue">Continuar</string>
+
+    <string name="confirm_heading_low_confidence">Verifica que este sea tu envío</string>
+    <string name="confirm_fallback_commodity">Envío</string>
+    <string name="confirm_label_air_waybill">Guía Aérea (AWB)</string>
+    <string name="confirm_badge_air_freight">Carga aérea</string>
+    <string name="confirm_no_devices_expected">Sin dispositivos esperados</string>
+    <plurals name="confirm_devices_to_collect">
+        <item quantity="one">1 dispositivo por recolectar</item>
+        <item quantity="other">%1$d dispositivos por recolectar</item>
+    </plurals>
+    <string name="confirm_start_scanning">Comenzar escaneo</string>
+    <string name="common_cancel">Cancelar</string>
+    <string name="common_ok">OK</string>
+
+    <string name="collection_title_fallback">Recolectando</string>
+    <string name="collection_header_collected">Recolectados</string>
+    <string name="collection_header_of">de</string>
+    <string name="collection_state_searching">Buscando</string>
+    <string name="collection_state_in_range">En rango</string>
+    <string name="collection_state_connecting">Conectando…</string>
+    <string name="collection_state_syncing">Sincronizando</string>
+    <string name="collection_state_finalising">Finalizando…</string>
+    <string name="collection_state_collected">Recolectado</string>
+    <string name="collection_state_missing">No detectado</string>
+    <string name="collection_state_error">Conexión fallida</string>
+    <string name="collection_state_syncing_with_percent">Sincronizando  %1$d%%</string>
+    <string name="collection_row_retry">Reintentar</string>
+    <string name="collection_row_device_id">Dispositivo %1$s</string>
+    <string name="collection_alarm_on_device">Alarma en el dispositivo</string>
+    <string name="collection_finish">Todos los dispositivos recolectados — finalizar</string>
+    <string name="collection_close_partial">Cerrar envío sin los dispositivos restantes</string>
+    <plurals name="collection_more_devices_to_find">
+        <item quantity="one">Falta 1 dispositivo por encontrar</item>
+        <item quantity="other">Faltan %1$d dispositivos por encontrar</item>
+    </plurals>
+    <string name="collection_close_dialog_title_finish">¿Finalizar envío?</string>
+    <plurals name="collection_close_dialog_title_partial">
+        <item quantity="one">¿Cerrar sin 1 dispositivo?</item>
+        <item quantity="other">¿Cerrar sin %1$d dispositivos?</item>
+    </plurals>
+    <string name="collection_close_dialog_body_partial">Los dispositivos faltantes se registrarán en el paquete de atestación.</string>
+    <string name="collection_close_dialog_body_all">Se han recolectado todos los dispositivos esperados.</string>
+    <string name="collection_close_dialog_confirm">Cerrar envío</string>
+
+    <string name="failure_unreachable_title">No se puede conectar con los servidores de Suply</string>
+    <string name="failure_unreachable_body">Revisa tu conexión a internet e intenta nuevamente.</string>
+    <string name="failure_timeout_title">Los servidores de Suply no responden</string>
+    <string name="failure_timeout_body">Esto suele resolverse en pocos segundos. Intenta nuevamente.</string>
+    <string name="failure_server_title">Algo salió mal</string>
+    <string name="failure_server_body_with_code">Suply devolvió un error (HTTP %1$d). Intenta nuevamente en un momento o contacta a tu embarcador si persiste.</string>
+    <string name="failure_server_body_unknown">Error inesperado. Intenta nuevamente en un momento.</string>
+    <string name="failure_malformed_title">Respuesta inesperada de Suply</string>
+    <string name="failure_malformed_body">El servidor respondió con un formato que la app no reconoce — normalmente significa que el backend se actualizó sin que la app se actualizara también. Pide a tu embarcador que revise el despliegue.</string>
+    <string name="failure_no_shipment_for_awb_title">No se encontró un envío activo</string>
+    <string name="failure_no_shipment_for_awb_body">No se encontró un envío activo para el AWB %1$s. Verifica el número; si el envío ya se completó, contacta a tu embarcador.</string>
+    <string name="failure_no_awb_in_image_title">No se pudo leer el AWB</string>
+    <string name="failure_no_awb_in_image_body">Prueba con otro ángulo o mejor iluminación, o escanea el QR del dispositivo.</string>
+    <string name="failure_device_not_registered_title">Dispositivo no registrado</string>
+    <string name="failure_device_not_registered_body">Este dispositivo Echo Air no está registrado en el sistema. Contacta a tu embarcador.</string>
+    <string name="failure_device_not_assigned_title">Dispositivo sin envío activo</string>
+    <string name="failure_device_not_assigned_body">Este dispositivo está registrado pero no está asignado a un envío activo. Contacta a tu embarcador.</string>
+    <string name="failure_unrecognised_qr_title">Código QR no reconocido</string>
+    <string name="failure_unrecognised_qr_body">Asegúrate de estar escaneando la etiqueta QR impresa en un dispositivo Echo Air.</string>
+    <string name="failure_debug_detail_suffix">\n\n[debug] %1$s</string>
+
+    <string name="permission_camera_rationale">Echo Air necesita acceso a la cámara para identificar envíos desde sus documentos.</string>
+    <string name="permission_ble_rationale">Echo Air necesita permiso de Bluetooth para recolectar datos de los registradores del envío.</string>
+    <string name="permission_location_rationale">Android requiere permiso de ubicación antes de escanear dispositivos Bluetooth. Algunos fabricantes (Honor, Huawei, Xiaomi) lo exigen incluso en versiones recientes de Android. Echo Air no lee ni utiliza tu ubicación.</string>
+
+    <string name="notif_channel_collection">Recolección activa</string>
+    <string name="notif_channel_sync">Sincronización de datos</string>
+    <string name="notif_collection_title">Recolectando envío</string>
+    <string name="notif_collection_body">Recolectando datos del envío</string>
+
+    <string name="spike_title">Spike kbeaconlib2</string>
+    <string name="spike_field_mac_label">MAC del dispositivo (BC:57:29:1C:D6:A6)</string>
+    <string name="spike_field_password_label">Contraseña</string>
+    <string name="spike_run">Ejecutar spike</string>
+    <string name="spike_log_output">Registro</string>
+</resources>

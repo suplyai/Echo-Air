@@ -1,41 +1,158 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+    <!--
+      ============================================================
+      Echo Air — canonical English resource file (values/strings.xml)
+      ============================================================
+      All user-facing strings in the app. Translations live in
+      values-es, values-zh, values-ja. Keep keys in this order when
+      adding new ones so diffs stay manageable.
+
+      Terminology rules (see brief):
+        - Air Waybill: spell out on first reference, use "AWB" after.
+        - Don't translate: commodity names, IATA codes, AWB numbers,
+          device IDs/MACs, airline carrier names, unit symbols (°C, V,
+          dBm), brand ("Echo Air", "Suply").
+    -->
+
     <string name="app_name">Echo Air</string>
 
+    <!-- ============ Home ============ -->
     <string name="home_title">Echo Air</string>
-    <string name="home_cta">Receiving a shipment?</string>
-    <string name="home_cta_sub">Point your camera at a shipping document.</string>
-    <string name="home_scan_qr">Scan device QR instead</string>
-    <string name="home_settings">Settings</string>
+    <string name="home_cta_scan_qr_title">Scan QR code</string>
+    <string name="home_cta_scan_qr_body">On the Echo Air device, or on the shipment label.</string>
+    <string name="home_cta_enter_awb">Enter AWB manually</string>
+    <string name="home_settings_cd">Settings</string>
+    <string name="home_language_cd">Change language</string>
+    <string name="home_debug_scan_document">[debug] Scan document (OCR)</string>
 
-    <string name="capture_confirm_title">Confirm shipment</string>
-    <string name="capture_start_collecting">Start collecting</string>
-    <string name="capture_cancel">Cancel</string>
-    <string name="capture_retake">Retake</string>
-    <string name="capture_no_match">AWB extracted but no matching shipment. Check the number or contact your shipper.</string>
-    <string name="capture_no_awb">Couldn\'t read an AWB from this image. Try another angle or scan the device QR.</string>
-    <string name="capture_offline">Network connection needed. Try scanning the device QR code instead.</string>
-
-    <string name="collection_collected">Collected</string>
-    <string name="collection_of">of</string>
-    <string name="collection_finish">All devices collected — finish</string>
-    <string name="collection_close_partial">Close shipment without remaining devices</string>
-    <string name="collection_searching">Searching</string>
-    <string name="collection_in_range">In range</string>
-    <string name="collection_syncing">Syncing</string>
-    <string name="collection_collected_state">Collected</string>
-    <string name="collection_missing">Not detected</string>
-    <string name="collection_error">Connection failed</string>
-    <string name="collection_retry">Retry</string>
-
+    <!-- ============ Settings ============ -->
     <string name="settings_title">Settings</string>
     <string name="settings_battery_optimisation">Disable battery optimisation</string>
+    <string name="settings_language">Language</string>
+    <string name="settings_debug_run_spike">Run kbeaconlib2 spike (debug)</string>
 
+    <!-- ============ Language picker ============ -->
+    <string name="language_picker_title">Language</string>
+    <string name="language_name_en">English</string>
+    <string name="language_name_es">Español</string>
+    <string name="language_name_zh">简体中文</string>
+    <string name="language_name_ja">日本語</string>
+    <!-- First-launch confirmation. %1$s = native name of detected language -->
+    <string name="language_first_launch_set_to">We\'ve set your language to %1$s.</string>
+    <string name="language_first_launch_question">Is this correct?</string>
+    <string name="language_first_launch_yes">Yes, continue</string>
+    <string name="language_first_launch_change">Change language</string>
+
+    <!-- ============ Capture (QR + document debug) ============ -->
+    <string name="capture_title_qr">Scan device QR</string>
+    <string name="capture_title_document">Scan document</string>
+    <string name="capture_document_button">Capture</string>
+    <string name="capture_permission_grant">Grant camera permission</string>
+
+    <!-- ============ Manual AWB entry ============ -->
+    <string name="awb_title">Enter AWB</string>
+    <string name="awb_heading">Enter the 11-digit air waybill number</string>
+    <string name="awb_subheading">3-digit airline prefix, then 8-digit serial.</string>
+    <string name="awb_unknown_prefix">Unknown airline prefix.</string>
+    <!-- Check-digit mismatch. %1$d = expected digit. -->
+    <string name="awb_check_digit_mismatch">Check digit doesn\'t match — double-check the last digit.</string>
+    <string name="awb_check_digit_mismatch_expected">Check digit doesn\'t match — double-check the last digit (expected %1$d).</string>
+    <string name="awb_continue">Continue</string>
+
+    <!-- ============ Confirm Shipment sheet ============ -->
+    <string name="confirm_heading_low_confidence">Double-check this is your shipment</string>
+    <string name="confirm_fallback_commodity">Shipment</string>
+    <string name="confirm_label_air_waybill">Air Waybill</string>
+    <string name="confirm_badge_air_freight">Air freight</string>
+    <string name="confirm_no_devices_expected">No devices expected</string>
+    <plurals name="confirm_devices_to_collect">
+        <item quantity="one">1 device to collect</item>
+        <item quantity="other">%1$d devices to collect</item>
+    </plurals>
+    <string name="confirm_start_scanning">Start scanning</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_ok">OK</string>
+
+    <!-- ============ Collection screen ============ -->
+    <!-- Title fallback while shipment is still loading -->
+    <string name="collection_title_fallback">Collecting</string>
+    <!-- Header "Collected: 2 of 6" -->
+    <string name="collection_header_collected">Collected</string>
+    <string name="collection_header_of">of</string>
+    <!-- Per-device states -->
+    <string name="collection_state_searching">Searching</string>
+    <string name="collection_state_in_range">In range</string>
+    <string name="collection_state_connecting">Connecting…</string>
+    <string name="collection_state_syncing">Syncing</string>
+    <string name="collection_state_finalising">Finalising…</string>
+    <string name="collection_state_collected">Collected</string>
+    <string name="collection_state_missing">Not detected</string>
+    <string name="collection_state_error">Connection failed</string>
+    <!-- "Syncing  42%" — %1$d is the integer percent -->
+    <string name="collection_state_syncing_with_percent">Syncing  %1$d%%</string>
+    <string name="collection_row_retry">Retry</string>
+    <!-- "Device 633640" — %1$s is the device ID, do not translate the ID itself -->
+    <string name="collection_row_device_id">Device %1$s</string>
+    <string name="collection_alarm_on_device">Alarm on device</string>
+    <!-- Bottom bar -->
+    <string name="collection_finish">All devices collected — finish</string>
+    <string name="collection_close_partial">Close shipment without remaining devices</string>
+    <plurals name="collection_more_devices_to_find">
+        <item quantity="one">1 more device to find</item>
+        <item quantity="other">%1$d more devices to find</item>
+    </plurals>
+    <!-- Close-confirmation dialog -->
+    <string name="collection_close_dialog_title_finish">Finish shipment?</string>
+    <plurals name="collection_close_dialog_title_partial">
+        <item quantity="one">Close without 1 device?</item>
+        <item quantity="other">Close without %1$d devices?</item>
+    </plurals>
+    <string name="collection_close_dialog_body_partial">Missing devices will be recorded in the attestation pack.</string>
+    <string name="collection_close_dialog_body_all">All expected devices have been collected.</string>
+    <string name="collection_close_dialog_confirm">Close shipment</string>
+
+    <!-- ============ Failure dialogs (CaptureViewModel.Failure → copy) ============ -->
+    <string name="failure_unreachable_title">Can\'t reach Suply servers</string>
+    <string name="failure_unreachable_body">Check your internet connection, then try again.</string>
+    <string name="failure_timeout_title">Suply servers aren\'t responding</string>
+    <string name="failure_timeout_body">This usually clears up after a few seconds. Try again.</string>
+    <string name="failure_server_title">Something went wrong</string>
+    <!-- Body when the HTTP code is known (e.g. 500, 503). %1$d = HTTP status code -->
+    <string name="failure_server_body_with_code">Suply returned an error (HTTP %1$d). Try again in a moment, or contact your shipper if it keeps happening.</string>
+    <!-- Body when the code is 0 / unknown (non-HttpException throwable) -->
+    <string name="failure_server_body_unknown">Unexpected error. Try again in a moment.</string>
+    <string name="failure_malformed_title">Unexpected response from Suply</string>
+    <string name="failure_malformed_body">The server responded in a shape the app didn\'t recognise — usually means the backend was updated without the app catching up. Ask your shipper to check the deployment.</string>
+    <string name="failure_no_shipment_for_awb_title">No active shipment found</string>
+    <!-- %1$s = AWB number, do not translate -->
+    <string name="failure_no_shipment_for_awb_body">No active shipment was found for AWB %1$s. Double-check the number, or if the shipment has already been completed, contact your shipper.</string>
+    <string name="failure_no_awb_in_image_title">Couldn\'t read the AWB</string>
+    <string name="failure_no_awb_in_image_body">Try another angle or better lighting, or scan the device QR code instead.</string>
+    <string name="failure_device_not_registered_title">Device not registered</string>
+    <string name="failure_device_not_registered_body">This Echo Air device isn\'t registered in the system. Contact your shipper.</string>
+    <string name="failure_device_not_assigned_title">Device not on an active shipment</string>
+    <string name="failure_device_not_assigned_body">This device is registered but isn\'t currently assigned to an active shipment. Contact your shipper.</string>
+    <string name="failure_unrecognised_qr_title">Unrecognised QR code</string>
+    <string name="failure_unrecognised_qr_body">Make sure you\'re scanning the QR label printed on an Echo Air device.</string>
+    <!-- Debug-only detail suffix, only visible in debug builds. %1$s = exception info. -->
+    <string name="failure_debug_detail_suffix">\n\n[debug] %1$s</string>
+
+    <!-- ============ Permission rationales ============ -->
+    <string name="permission_camera_rationale">Echo Air needs camera access to identify shipments from their documents.</string>
+    <string name="permission_ble_rationale">Echo Air needs Bluetooth permission to collect data from shipment loggers.</string>
+    <string name="permission_location_rationale">Android requires location permission before it will scan for Bluetooth devices. Some phone manufacturers (Honor, Huawei, Xiaomi) require this even on newer Android versions. Echo Air does not read or use your location itself.</string>
+
+    <!-- ============ Notification channels ============ -->
     <string name="notif_channel_collection">Active collection</string>
     <string name="notif_channel_sync">Data sync</string>
     <string name="notif_collection_title">Collecting shipment</string>
+    <string name="notif_collection_body">Collecting shipment data</string>
 
-    <string name="permission_ble_rationale">Echo Air needs Bluetooth permission to collect data from shipment loggers.</string>
-    <string name="permission_camera_rationale">Echo Air needs camera access to identify shipments from their documents.</string>
-    <string name="permission_location_rationale">Android requires location permission before it will scan for Bluetooth devices. Some phone manufacturers (Honor, Huawei, Xiaomi) require this even on newer Android versions. Echo Air does not read or use your location itself.</string>
+    <!-- ============ Debug / spike ============ -->
+    <string name="spike_title">kbeaconlib2 spike</string>
+    <string name="spike_field_mac_label">Device MAC (BC:57:29:1C:D6:A6)</string>
+    <string name="spike_field_password_label">Password</string>
+    <string name="spike_run">Run spike</string>
+    <string name="spike_log_output">Log output</string>
 </resources>

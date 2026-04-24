@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Echo Air — 日本語 (航空貨物業界用語)。
+  業界慣例: 正式表記は「航空運送状」、本文では AWB 略語を使用。
+-->
+<resources>
+    <string name="app_name">Echo Air</string>
+
+    <string name="home_title">Echo Air</string>
+    <string name="home_cta_scan_qr_title">QR コードをスキャン</string>
+    <string name="home_cta_scan_qr_body">Echo Air デバイスまたは貨物ラベル上。</string>
+    <string name="home_cta_enter_awb">AWB を手動で入力</string>
+    <string name="home_settings_cd">設定</string>
+    <string name="home_language_cd">言語を変更</string>
+    <string name="home_debug_scan_document">[debug] ドキュメントをスキャン (OCR)</string>
+
+    <string name="settings_title">設定</string>
+    <string name="settings_battery_optimisation">バッテリー最適化を無効化</string>
+    <string name="settings_language">言語</string>
+    <string name="settings_debug_run_spike">kbeaconlib2 スパイクを実行 (debug)</string>
+
+    <string name="language_picker_title">言語</string>
+    <string name="language_name_en">English</string>
+    <string name="language_name_es">Español</string>
+    <string name="language_name_zh">简体中文</string>
+    <string name="language_name_ja">日本語</string>
+    <string name="language_first_launch_set_to">言語を %1$s に設定しました。</string>
+    <string name="language_first_launch_question">この設定でよろしいですか?</string>
+    <string name="language_first_launch_yes">はい、続行</string>
+    <string name="language_first_launch_change">言語を変更</string>
+
+    <string name="capture_title_qr">デバイス QR をスキャン</string>
+    <string name="capture_title_document">ドキュメントをスキャン</string>
+    <string name="capture_document_button">撮影</string>
+    <string name="capture_permission_grant">カメラ権限を許可</string>
+
+    <string name="awb_title">AWB を入力</string>
+    <string name="awb_heading">11 桁の航空運送状番号 (AWB) を入力してください</string>
+    <string name="awb_subheading">航空会社コード 3 桁、続けて連番 8 桁。</string>
+    <string name="awb_unknown_prefix">不明な航空会社コードです。</string>
+    <string name="awb_check_digit_mismatch">チェックディジットが一致しません — 最後の桁を確認してください。</string>
+    <string name="awb_check_digit_mismatch_expected">チェックディジットが一致しません — 最後の桁を確認してください (正しい値: %1$d)。</string>
+    <string name="awb_continue">続行</string>
+
+    <string name="confirm_heading_low_confidence">この貨物で間違いないかご確認ください</string>
+    <string name="confirm_fallback_commodity">貨物</string>
+    <string name="confirm_label_air_waybill">航空運送状 (AWB)</string>
+    <string name="confirm_badge_air_freight">航空貨物</string>
+    <string name="confirm_no_devices_expected">収集対象のデバイスはありません</string>
+    <plurals name="confirm_devices_to_collect">
+        <item quantity="other">収集対象 %1$d 台</item>
+    </plurals>
+    <string name="confirm_start_scanning">スキャン開始</string>
+    <string name="common_cancel">キャンセル</string>
+    <string name="common_ok">OK</string>
+
+    <string name="collection_title_fallback">収集中</string>
+    <string name="collection_header_collected">収集済み</string>
+    <string name="collection_header_of">/</string>
+    <string name="collection_state_searching">検索中</string>
+    <string name="collection_state_in_range">範囲内</string>
+    <string name="collection_state_connecting">接続中…</string>
+    <string name="collection_state_syncing">同期中</string>
+    <string name="collection_state_finalising">最終処理中…</string>
+    <string name="collection_state_collected">収集完了</string>
+    <string name="collection_state_missing">検出されません</string>
+    <string name="collection_state_error">接続に失敗しました</string>
+    <string name="collection_state_syncing_with_percent">同期中  %1$d%%</string>
+    <string name="collection_row_retry">再試行</string>
+    <string name="collection_row_device_id">デバイス %1$s</string>
+    <string name="collection_alarm_on_device">デバイスでアラームが発生</string>
+    <string name="collection_finish">全デバイスの収集完了 — 終了</string>
+    <string name="collection_close_partial">残りのデバイスを含めずに貨物を終了</string>
+    <plurals name="collection_more_devices_to_find">
+        <item quantity="other">残り %1$d 台</item>
+    </plurals>
+    <string name="collection_close_dialog_title_finish">貨物を終了しますか?</string>
+    <plurals name="collection_close_dialog_title_partial">
+        <item quantity="other">%1$d 台未収集のまま終了しますか?</item>
+    </plurals>
+    <string name="collection_close_dialog_body_partial">未収集のデバイスは証明書パックに記録されます。</string>
+    <string name="collection_close_dialog_body_all">予定されていた全デバイスを収集しました。</string>
+    <string name="collection_close_dialog_confirm">貨物を終了</string>
+
+    <string name="failure_unreachable_title">Suply サーバーに接続できません</string>
+    <string name="failure_unreachable_body">インターネット接続を確認してから再試行してください。</string>
+    <string name="failure_timeout_title">Suply サーバーが応答しません</string>
+    <string name="failure_timeout_body">通常は数秒で解消します。再試行してください。</string>
+    <string name="failure_server_title">エラーが発生しました</string>
+    <string name="failure_server_body_with_code">Suply がエラーを返しました (HTTP %1$d)。しばらく経ってから再試行するか、解消しない場合は荷送人にご連絡ください。</string>
+    <string name="failure_server_body_unknown">予期しないエラーが発生しました。しばらく経ってから再試行してください。</string>
+    <string name="failure_malformed_title">Suply から想定外のレスポンス</string>
+    <string name="failure_malformed_body">サーバーの応答形式をアプリが認識できません — 通常はバックエンドが更新されたがアプリが追従していないことを意味します。荷送人にデプロイの確認を依頼してください。</string>
+    <string name="failure_no_shipment_for_awb_title">進行中の貨物が見つかりません</string>
+    <string name="failure_no_shipment_for_awb_body">AWB %1$s に対応する進行中の貨物が見つかりません。番号を再確認してください。すでに完了している場合は荷送人にご連絡ください。</string>
+    <string name="failure_no_awb_in_image_title">AWB を読み取れませんでした</string>
+    <string name="failure_no_awb_in_image_body">角度や照明を変えて再試行するか、デバイスの QR コードをスキャンしてください。</string>
+    <string name="failure_device_not_registered_title">デバイスが未登録です</string>
+    <string name="failure_device_not_registered_body">この Echo Air デバイスはシステムに登録されていません。荷送人にご連絡ください。</string>
+    <string name="failure_device_not_assigned_title">デバイスが進行中の貨物に紐づいていません</string>
+    <string name="failure_device_not_assigned_body">このデバイスは登録済みですが、現在進行中の貨物に紐づいていません。荷送人にご連絡ください。</string>
+    <string name="failure_unrecognised_qr_title">認識できない QR コード</string>
+    <string name="failure_unrecognised_qr_body">Echo Air デバイスに印刷された QR ラベルをスキャンしていることを確認してください。</string>
+    <string name="failure_debug_detail_suffix">\n\n[debug] %1$s</string>
+
+    <string name="permission_camera_rationale">Echo Air は書類から貨物を識別するためにカメラへのアクセスを必要とします。</string>
+    <string name="permission_ble_rationale">Echo Air は貨物ロガーからデータを収集するために Bluetooth 権限を必要とします。</string>
+    <string name="permission_location_rationale">Android は Bluetooth デバイスをスキャンする前に位置情報の許可を要求します。一部メーカー (Honor、Huawei、Xiaomi) では新しい Android バージョンでもこれを要求します。Echo Air は位置情報自体を読み取ったり使用したりすることはありません。</string>
+
+    <string name="notif_channel_collection">収集中</string>
+    <string name="notif_channel_sync">データ同期</string>
+    <string name="notif_collection_title">貨物を収集中</string>
+    <string name="notif_collection_body">貨物データを収集中です</string>
+
+    <string name="spike_title">kbeaconlib2 スパイク</string>
+    <string name="spike_field_mac_label">デバイス MAC (BC:57:29:1C:D6:A6)</string>
+    <string name="spike_field_password_label">パスワード</string>
+    <string name="spike_run">スパイクを実行</string>
+    <string name="spike_log_output">ログ出力</string>
+</resources>

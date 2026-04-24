@@ -7,7 +7,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -16,6 +21,8 @@ import app.suply.echoair.ui.capture.CaptureMode
 import app.suply.echoair.ui.capture.CaptureScreen
 import app.suply.echoair.ui.collection.CollectionScreen
 import app.suply.echoair.ui.home.HomeScreen
+import app.suply.echoair.ui.locale.FirstLaunchLanguageGate
+import app.suply.echoair.ui.locale.LocaleManager
 import app.suply.echoair.ui.settings.SettingsScreen
 import app.suply.echoair.ui.web.WebScreen
 import app.suply.echoair.ui.web.WebViewBridge
@@ -39,7 +46,14 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+                    val context = LocalContext.current
+                    var firstLaunchNeeded by remember {
+                        mutableStateOf(!LocaleManager.hasConfirmedFirstLaunch(context))
+                    }
                     EchoAirNavHost()
+                    if (firstLaunchNeeded) {
+                        FirstLaunchLanguageGate(onAcknowledged = { firstLaunchNeeded = false })
+                    }
                 }
             }
         }

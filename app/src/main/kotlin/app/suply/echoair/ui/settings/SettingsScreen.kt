@@ -69,7 +69,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                         runCatching { context.startActivity(intent) }
                     },
                     modifier = Modifier.fillMaxWidth()
-                ) { Text("Run kbeaconlib2 spike (debug)") }
+                ) { Text(stringResource(R.string.settings_debug_run_spike)) }
             }
         }
     }

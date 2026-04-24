@@ -61,7 +61,14 @@ fun CaptureScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (mode == CaptureMode.DOCUMENT) "Scan document" else "Scan device QR") },
+                title = {
+                    Text(
+                        stringResource(
+                            if (mode == CaptureMode.DOCUMENT) R.string.capture_title_document
+                            else R.string.capture_title_qr
+                        )
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onCancel) { Icon(Icons.Default.Close, contentDescription = null) }
                 }
@@ -112,7 +119,7 @@ fun CaptureScreen(
                     val (title, body) = failureCopy(failure)
                     AlertDialog(
                         onDismissRequest = { vm.clear() },
-                        confirmButton = { TextButton(onClick = { vm.clear() }) { Text("OK") } },
+                        confirmButton = { TextButton(onClick = { vm.clear() }) { Text(stringResource(R.string.common_ok)) } },
                         title = { Text(title) },
                         text = { Text(body) }
                     )
@@ -131,51 +138,49 @@ fun CaptureScreen(
 @Composable
 internal fun failureCopy(failure: CaptureViewModel.Failure): Pair<String, String> = when (failure) {
     CaptureViewModel.Failure.Unreachable -> Pair(
-        "Can't reach Suply servers",
-        "Check your internet connection, then try again."
+        stringResource(R.string.failure_unreachable_title),
+        stringResource(R.string.failure_unreachable_body)
     )
     CaptureViewModel.Failure.Timeout -> Pair(
-        "Suply servers aren't responding",
-        "This usually clears up after a few seconds. Try again."
+        stringResource(R.string.failure_timeout_title),
+        stringResource(R.string.failure_timeout_body)
     )
-    is CaptureViewModel.Failure.Server -> Pair(
-        "Something went wrong",
-        buildString {
-            append(
-                if (failure.httpCode > 0)
-                    "Suply returned an error (HTTP ${failure.httpCode}). Try again in a moment, or contact your shipper if it keeps happening."
-                else
-                    "Unexpected error. Try again in a moment."
-            )
-            if (app.suply.echoair.BuildConfig.DEBUG && !failure.debugDetail.isNullOrBlank()) {
-                append("\n\n[debug] ").append(failure.debugDetail)
-            }
-        }
-    )
-    is CaptureViewModel.Failure.MalformedResponse -> Pair(
-        "Unexpected response from Suply",
-        "The server responded in a shape the app didn't recognise — usually means the backend was updated without the app catching up. Ask your shipper to check the deployment." +
-            if (app.suply.echoair.BuildConfig.DEBUG) "\n\n[debug] ${failure.detail}" else ""
-    )
+    is CaptureViewModel.Failure.Server -> {
+        val primary = if (failure.httpCode > 0)
+            stringResource(R.string.failure_server_body_with_code, failure.httpCode)
+        else
+            stringResource(R.string.failure_server_body_unknown)
+        val body = if (app.suply.echoair.BuildConfig.DEBUG && !failure.debugDetail.isNullOrBlank())
+            primary + stringResource(R.string.failure_debug_detail_suffix, failure.debugDetail)
+        else primary
+        Pair(stringResource(R.string.failure_server_title), body)
+    }
+    is CaptureViewModel.Failure.MalformedResponse -> {
+        val primary = stringResource(R.string.failure_malformed_body)
+        val body = if (app.suply.echoair.BuildConfig.DEBUG)
+            primary + stringResource(R.string.failure_debug_detail_suffix, failure.detail)
+        else primary
+        Pair(stringResource(R.string.failure_malformed_title), body)
+    }
     is CaptureViewModel.Failure.NoShipmentForAwb -> Pair(
-        "No active shipment found",
-        "No active shipment was found for AWB ${failure.awb}. Double-check the number, or if the shipment has already been completed, contact your shipper."
+        stringResource(R.string.failure_no_shipment_for_awb_title),
+        stringResource(R.string.failure_no_shipment_for_awb_body, failure.awb)
     )
     CaptureViewModel.Failure.NoAwbInImage -> Pair(
-        "Couldn't read the AWB",
-        "Try another angle or better lighting, or scan the device QR code instead."
+        stringResource(R.string.failure_no_awb_in_image_title),
+        stringResource(R.string.failure_no_awb_in_image_body)
     )
     CaptureViewModel.Failure.DeviceNotRegistered -> Pair(
-        "Device not registered",
-        "This Echo Air device isn't registered in the system. Contact your shipper."
+        stringResource(R.string.failure_device_not_registered_title),
+        stringResource(R.string.failure_device_not_registered_body)
     )
     CaptureViewModel.Failure.DeviceNotAssigned -> Pair(
-        "Device not on an active shipment",
-        "This device is registered but isn't currently assigned to an active shipment. Contact your shipper."
+        stringResource(R.string.failure_device_not_assigned_title),
+        stringResource(R.string.failure_device_not_assigned_body)
     )
     CaptureViewModel.Failure.UnrecognisedQr -> Pair(
-        "Unrecognised QR code",
-        "Make sure you're scanning the QR label printed on an Echo Air device."
+        stringResource(R.string.failure_unrecognised_qr_title),
+        stringResource(R.string.failure_unrecognised_qr_body)
     )
 }
 
@@ -188,7 +193,7 @@ private fun PermissionGate(onRequest: () -> Unit) {
     ) {
         Text(stringResource(R.string.permission_camera_rationale))
         Spacer(Modifier.height(16.dp))
-        Button(onClick = onRequest) { Text("Grant camera permission") }
+        Button(onClick = onRequest) { Text(stringResource(R.string.capture_permission_grant)) }
     }
 }
 
@@ -244,7 +249,7 @@ private fun DocumentCaptureView(onCaptured: (String) -> Unit) {
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 96.dp)
         ) {
-            Text("Capture")
+            Text(stringResource(R.string.capture_document_button))
         }
     }
 }

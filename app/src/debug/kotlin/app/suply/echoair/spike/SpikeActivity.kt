@@ -13,8 +13,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import app.suply.echoair.R
 import kotlinx.coroutines.launch
 
 /**
@@ -57,7 +59,7 @@ private fun SpikeScreen() {
     LaunchedEffect(Unit) { permLauncher.launch(perms) }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("kbeaconlib2 spike") }) }
+        topBar = { TopAppBar(title = { Text(stringResource(R.string.spike_title)) }) }
     ) { padding ->
         Column(
             modifier = Modifier.padding(padding).padding(16.dp).fillMaxSize(),
@@ -65,12 +67,12 @@ private fun SpikeScreen() {
         ) {
             OutlinedTextField(
                 value = mac, onValueChange = { mac = it },
-                label = { Text("Device MAC (BC:57:29:1C:D6:A6)") },
+                label = { Text(stringResource(R.string.spike_field_mac_label)) },
                 singleLine = true, modifier = Modifier.fillMaxWidth()
             )
             OutlinedTextField(
                 value = password, onValueChange = { password = it },
-                label = { Text("Password") },
+                label = { Text(stringResource(R.string.spike_field_password_label)) },
                 singleLine = true, modifier = Modifier.fillMaxWidth()
             )
             Button(
@@ -86,11 +88,11 @@ private fun SpikeScreen() {
                 enabled = !running && mac.isNotBlank()
             ) {
                 if (running) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
-                else Text("Run spike")
+                else Text(stringResource(R.string.spike_run))
             }
 
             Divider()
-            Text("Log output", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.spike_log_output), style = MaterialTheme.typography.titleMedium)
             Column(
                 modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(2.dp)

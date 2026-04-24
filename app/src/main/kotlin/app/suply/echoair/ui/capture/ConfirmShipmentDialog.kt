@@ -12,9 +12,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.suply.echoair.R
 import app.suply.echoair.data.api.ShipmentDto
 import app.suply.echoair.ui.haptics.EchoHaptics
 
@@ -68,7 +71,7 @@ fun ConfirmShipmentSheet(
             // confidence; QR and manual AWB paths pass confidence = "high" or null.
             if (confidence == "low" || confidence == "medium") {
                 Text(
-                    text = "Double-check this is your shipment",
+                    text = stringResource(R.string.confirm_heading_low_confidence),
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.tertiary
                 )
@@ -93,7 +96,7 @@ fun ConfirmShipmentSheet(
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = commodityName ?: "Shipment",
+                        text = commodityName ?: stringResource(R.string.confirm_fallback_commodity),
                         style = MaterialTheme.typography.headlineSmall,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 26.sp
@@ -116,7 +119,7 @@ fun ConfirmShipmentSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = "Air Waybill",
+                        text = stringResource(R.string.confirm_label_air_waybill),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -159,10 +162,14 @@ fun ConfirmShipmentSheet(
             // Device count
             val deviceCount = shipment.devices.size
             Text(
-                text = when (deviceCount) {
-                    0 -> "No devices expected"
-                    1 -> "1 device to collect"
-                    else -> "$deviceCount devices to collect"
+                text = if (deviceCount == 0) {
+                    stringResource(R.string.confirm_no_devices_expected)
+                } else {
+                    pluralStringResource(
+                        R.plurals.confirm_devices_to_collect,
+                        deviceCount,
+                        deviceCount
+                    )
                 },
                 style = MaterialTheme.typography.titleMedium
             )
@@ -179,7 +186,7 @@ fun ConfirmShipmentSheet(
                     modifier = Modifier
                         .weight(1f)
                         .height(52.dp)
-                ) { Text("Cancel") }
+                ) { Text(stringResource(R.string.common_cancel)) }
                 Button(
                     onClick = {
                         EchoHaptics.tick(appContext)
@@ -188,7 +195,12 @@ fun ConfirmShipmentSheet(
                     modifier = Modifier
                         .weight(2f)
                         .height(52.dp)
-                ) { Text("Start scanning", style = MaterialTheme.typography.titleMedium) }
+                ) {
+                    Text(
+                        stringResource(R.string.confirm_start_scanning),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
             }
         }
     }
@@ -209,9 +221,10 @@ fun ConfirmShipmentDialog(
 
 @Composable
 private fun TransportModeBadge(mode: String?) {
-    val text = when {
+    val text: String? = when {
         mode == null -> null
-        mode.equals("air", ignoreCase = true) || mode.equals("air_freight", ignoreCase = true) -> "Air freight"
+        mode.equals("air", ignoreCase = true) || mode.equals("air_freight", ignoreCase = true) ->
+            stringResource(R.string.confirm_badge_air_freight)
         else -> mode.replace('_', ' ').replaceFirstChar { it.uppercase() }
     }
     if (text == null) return

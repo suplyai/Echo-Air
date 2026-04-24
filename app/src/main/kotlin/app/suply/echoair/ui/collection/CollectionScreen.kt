@@ -44,6 +44,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -91,7 +92,7 @@ fun CollectionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(shipment?.awbNumber ?: "Collecting") },
+                title = { Text(shipment?.awbNumber ?: stringResource(R.string.collection_title_fallback)) },
                 navigationIcon = {
                     IconButton(onClick = { confirmClose = true }) {
                         Icon(Icons.Default.Close, contentDescription = null)
@@ -140,12 +141,22 @@ fun CollectionScreen(
         val remaining = state.totalCount - state.collectedCount
         AlertDialog(
             onDismissRequest = { confirmClose = false },
-            title = { Text(if (remaining > 0) "Close without $remaining device${if (remaining == 1) "" else "s"}?" else "Finish shipment?") },
+            title = {
+                Text(
+                    if (remaining > 0)
+                        pluralStringResource(
+                            R.plurals.collection_close_dialog_title_partial,
+                            remaining,
+                            remaining
+                        )
+                    else stringResource(R.string.collection_close_dialog_title_finish)
+                )
+            },
             text = {
                 Text(
                     if (remaining > 0)
-                        "Missing devices will be recorded in the attestation pack."
-                    else "All expected devices have been collected."
+                        stringResource(R.string.collection_close_dialog_body_partial)
+                    else stringResource(R.string.collection_close_dialog_body_all)
                 )
             },
             confirmButton = {
@@ -153,10 +164,12 @@ fun CollectionScreen(
                     vm.markPartialAndStop()
                     confirmClose = false
                     onClose()
-                }) { Text("Close shipment") }
+                }) { Text(stringResource(R.string.collection_close_dialog_confirm)) }
             },
             dismissButton = {
-                TextButton(onClick = { confirmClose = false }) { Text(stringResource(R.string.capture_cancel)) }
+                TextButton(onClick = { confirmClose = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
             }
         )
     }
@@ -192,7 +205,7 @@ private fun ShipmentHeader(
 
         Spacer(Modifier.height(4.dp))
         Text(
-            "${stringResource(R.string.collection_collected)}: $collected ${stringResource(R.string.collection_of)} $total",
+            "${stringResource(R.string.collection_header_collected)}: $collected ${stringResource(R.string.collection_header_of)} $total",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium
         )
@@ -220,7 +233,10 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
                 StateIndicator(state = device.state, progress = progress)
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text("Device ${device.deviceId}", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.collection_row_device_id, device.deviceId),
+                        style = MaterialTheme.typography.titleMedium
+                    )
                     Text(
                         stateLabel(device),
                         style = MaterialTheme.typography.bodySmall,
@@ -228,7 +244,7 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
                     )
                 }
                 if (device.state == DeviceState.ERROR) {
-                    TextButton(onClick = onRetry) { Text(stringResource(R.string.collection_retry)) }
+                    TextButton(onClick = onRetry) { Text(stringResource(R.string.collection_row_retry)) }
                 }
             }
 
@@ -279,7 +295,7 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
                 Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
             if (device.alarm) {
-                Text("Alarm on device", style = MaterialTheme.typography.bodySmall, color = colorResource(R.color.state_error))
+                Text(stringResource(R.string.collection_alarm_on_device), style = MaterialTheme.typography.bodySmall, color = colorResource(R.color.state_error))
             }
         }
     }
@@ -438,16 +454,19 @@ private fun StateIndicator(state: DeviceState, progress: Float) {
 
 @Composable
 private fun stateLabel(device: Device): String = when (device.state) {
-    DeviceState.SEARCHING -> stringResource(R.string.collection_searching)
-    DeviceState.IN_RANGE -> stringResource(R.string.collection_in_range)
+    DeviceState.SEARCHING -> stringResource(R.string.collection_state_searching)
+    DeviceState.IN_RANGE -> stringResource(R.string.collection_state_in_range)
     DeviceState.SYNCING -> when {
-        device.progress <= 0.001f -> "Connecting…"
-        device.progress >= 0.999f -> "Finalising…"
-        else -> "${stringResource(R.string.collection_syncing)}  ${(device.progress * 100).toInt()}%"
+        device.progress <= 0.001f -> stringResource(R.string.collection_state_connecting)
+        device.progress >= 0.999f -> stringResource(R.string.collection_state_finalising)
+        else -> stringResource(
+            R.string.collection_state_syncing_with_percent,
+            (device.progress * 100).toInt()
+        )
     }
-    DeviceState.COLLECTED -> stringResource(R.string.collection_collected_state)
-    DeviceState.MISSING -> stringResource(R.string.collection_missing)
-    DeviceState.ERROR -> stringResource(R.string.collection_error)
+    DeviceState.COLLECTED -> stringResource(R.string.collection_state_collected)
+    DeviceState.MISSING -> stringResource(R.string.collection_state_missing)
+    DeviceState.ERROR -> stringResource(R.string.collection_state_error)
 }
 
 @Composable
@@ -472,7 +491,13 @@ private fun BottomBar(
                 }
             } else {
                 Button(onClick = {}, enabled = false, modifier = Modifier.fillMaxWidth()) {
-                    Text("$remaining more device${if (remaining == 1) "" else "s"} to find")
+                    Text(
+                        pluralStringResource(
+                            R.plurals.collection_more_devices_to_find,
+                            remaining,
+                            remaining
+                        )
+                    )
                 }
                 TextButton(onClick = onClosePartial, modifier = Modifier.fillMaxWidth()) {
                     Text(stringResource(R.string.collection_close_partial))

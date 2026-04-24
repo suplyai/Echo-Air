@@ -50,7 +50,7 @@ class CollectionScanService : LifecycleService() {
         )
         val notif: Notification = NotificationCompat.Builder(this, EchoAirApp.CHANNEL_COLLECTION)
             .setContentTitle(getString(R.string.notif_collection_title))
-            .setContentText("Collecting shipment data")
+            .setContentText(getString(R.string.notif_collection_body))
             .setSmallIcon(R.drawable.ic_launcher_foreground)
             .setOngoing(true)
             .setContentIntent(tap)

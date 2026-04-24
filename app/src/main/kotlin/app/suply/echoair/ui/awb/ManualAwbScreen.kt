@@ -20,6 +20,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import app.suply.echoair.R
 import app.suply.echoair.domain.Awb
 import app.suply.echoair.domain.IataCarriers
 import app.suply.echoair.ui.capture.CaptureViewModel
@@ -94,7 +96,7 @@ fun ManualAwbScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Enter AWB") },
+                title = { Text(stringResource(R.string.awb_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = null)
@@ -111,11 +113,11 @@ fun ManualAwbScreen(
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
             Text(
-                "Enter the 11-digit air waybill number",
+                stringResource(R.string.awb_heading),
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                "3-digit airline prefix, then 8-digit serial.",
+                stringResource(R.string.awb_subheading),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -206,7 +208,7 @@ fun ManualAwbScreen(
                 exit = fadeOut(tween(100, easing = FastOutSlowInEasing))
             ) {
                 Text(
-                    "Unknown airline prefix.",
+                    stringResource(R.string.awb_unknown_prefix),
                     style = MaterialTheme.typography.bodySmall,
                     color = AMBER
                 )
@@ -215,8 +217,9 @@ fun ManualAwbScreen(
             if (checkDigitMismatch) {
                 val expected = Awb.expectedCheckDigit(serial)
                 Text(
-                    "Check digit doesn't match — double-check the last digit" +
-                        (expected?.let { " (expected $it)" } ?: "") + ".",
+                    text = if (expected != null)
+                        stringResource(R.string.awb_check_digit_mismatch_expected, expected)
+                    else stringResource(R.string.awb_check_digit_mismatch),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error
                 )
@@ -235,7 +238,7 @@ fun ManualAwbScreen(
                     modifier = Modifier.size(22.dp),
                     strokeWidth = 2.dp,
                     color = MaterialTheme.colorScheme.onPrimary
-                ) else Text("Continue", style = MaterialTheme.typography.titleMedium)
+                ) else Text(stringResource(R.string.awb_continue), style = MaterialTheme.typography.titleMedium)
             }
         }
 
@@ -243,7 +246,7 @@ fun ManualAwbScreen(
             val (title, body) = failureCopy(failure)
             AlertDialog(
                 onDismissRequest = { vm.clear() },
-                confirmButton = { TextButton(onClick = { vm.clear() }) { Text("OK") } },
+                confirmButton = { TextButton(onClick = { vm.clear() }) { Text(stringResource(R.string.common_ok)) } },
                 title = { Text(title) },
                 text = { Text(body) }
             )
