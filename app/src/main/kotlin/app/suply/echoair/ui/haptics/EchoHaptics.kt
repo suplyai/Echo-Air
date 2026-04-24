@@ -43,6 +43,26 @@ object EchoHaptics {
         }
     }
 
+    /**
+     * Soft tap — lighter than [tick]. Used for inline, low-stakes
+     * affordances like "airline prefix matched" where we want acknowledgement
+     * without the firmness of a submit or a confirmed scan.
+     */
+    fun softTap(context: Context) {
+        val vibrator = platformVibrator(context) ?: return
+        if (!vibrator.hasVibrator()) return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            runCatching {
+                vibrator.vibrate(VibrationEffect.createPredefined(VibrationEffect.EFFECT_TICK))
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            runCatching {
+                vibrator.vibrate(VibrationEffect.createOneShot(20, VibrationEffect.DEFAULT_AMPLITUDE))
+            }
+        }
+    }
+
     private fun platformVibrator(context: Context): Vibrator? =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.getSystemService(VibratorManager::class.java)?.defaultVibrator

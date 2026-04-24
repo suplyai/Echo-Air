@@ -1,15 +1,23 @@
 package app.suply.echoair.ui.awb
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
@@ -22,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import app.suply.echoair.domain.Awb
+import app.suply.echoair.domain.IataCarriers
 import app.suply.echoair.ui.capture.CaptureViewModel
 import app.suply.echoair.ui.capture.failureCopy
 import app.suply.echoair.ui.haptics.EchoHaptics
@@ -61,9 +70,20 @@ fun ManualAwbScreen(
     val validAwb = canonical?.takeIf(Awb::isValid)
     val checkDigitMismatch = serial.length == 8 && canonical != null && validAwb == null
 
-    // Auto-advance from prefix to serial once prefix fills.
+    // Airline lookup: resolves as soon as the 3rd prefix digit lands.
+    val carrierName = remember(prefix) {
+        if (prefix.length == 3) IataCarriers.carrierName(prefix) else null
+    }
+    val prefixComplete = prefix.length == 3
+    val prefixMatched = prefixComplete && carrierName != null
+    val prefixUnknown = prefixComplete && carrierName == null
+
+    // Soft haptic the moment a prefix matches. Fires once per match event
+    // (re-keyed on prefix), silent on edit-down below 3 digits and silent
+    // on unknown prefixes.
     LaunchedEffect(prefix) {
-        if (prefix.length == 3) serialFocus.requestFocus()
+        if (prefixMatched) EchoHaptics.softTap(appContext)
+        if (prefixComplete) serialFocus.requestFocus()
     }
     LaunchedEffect(Unit) { prefixFocus.requestFocus() }
 
@@ -121,6 +141,7 @@ fun ManualAwbScreen(
                     },
                     length = 3,
                     imeAction = ImeAction.Next,
+                    accentColour = if (prefixMatched) SUCCESS_GREEN else null,
                     modifier = Modifier
                         .weight(0.35f)
                         .focusRequester(prefixFocus)
@@ -150,6 +171,44 @@ fun ManualAwbScreen(
                     modifier = Modifier
                         .weight(0.65f)
                         .focusRequester(serialFocus)
+                )
+            }
+
+            // Airline prefix feedback — match: green ✓ + carrier name;
+            // unknown: quiet amber hint (non-blocking). Fade durations and
+            // easing match the brief: 150ms reveal, 100ms hide, standard
+            // Material easing, no slide/bounce.
+            AnimatedVisibility(
+                visible = prefixMatched,
+                enter = fadeIn(tween(150, easing = FastOutSlowInEasing)),
+                exit = fadeOut(tween(100, easing = FastOutSlowInEasing))
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = SUCCESS_GREEN,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        carrierName.orEmpty(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            AnimatedVisibility(
+                visible = prefixUnknown,
+                enter = fadeIn(tween(150, easing = FastOutSlowInEasing)),
+                exit = fadeOut(tween(100, easing = FastOutSlowInEasing))
+            ) {
+                Text(
+                    "Unknown airline prefix.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AMBER
                 )
             }
 
@@ -220,8 +279,21 @@ private fun DigitField(
     length: Int,
     imeAction: ImeAction,
     modifier: Modifier = Modifier,
-    onImeAction: (() -> Unit)? = null
+    onImeAction: (() -> Unit)? = null,
+    accentColour: Color? = null
 ) {
+    val defaultOutline = MaterialTheme.colorScheme.outline
+    val defaultFocused = MaterialTheme.colorScheme.primary
+    val unfocused by animateColorAsState(
+        targetValue = accentColour ?: defaultOutline,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "digitFieldUnfocusedBorder"
+    )
+    val focused by animateColorAsState(
+        targetValue = accentColour ?: defaultFocused,
+        animationSpec = tween(200, easing = FastOutSlowInEasing),
+        label = "digitFieldFocusedBorder"
+    )
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -242,6 +314,10 @@ private fun DigitField(
             onNext = { /* handled by auto-advance LaunchedEffect */ },
             onDone = { onImeAction?.invoke() }
         ),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = focused,
+            unfocusedBorderColor = unfocused
+        ),
         placeholder = {
             Text(
                 "0".repeat(length),
@@ -256,3 +332,6 @@ private fun DigitField(
         }
     )
 }
+
+private val SUCCESS_GREEN = Color(0xFF34C759)
+private val AMBER = Color(0xFFB7791F)

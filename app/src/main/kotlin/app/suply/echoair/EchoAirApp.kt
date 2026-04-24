@@ -25,6 +25,9 @@ class EchoAirApp : Application(), Configuration.Provider {
         super.onCreate()
         if (BuildConfig.DEBUG) Timber.plant(Timber.DebugTree())
         createNotificationChannels()
+        // Warm the IATA carrier lookup so the first keystroke on the AWB
+        // prefix field hits an in-memory map rather than disk I/O.
+        app.suply.echoair.domain.IataCarriers.warmup(this)
     }
 
     private fun createNotificationChannels() {
