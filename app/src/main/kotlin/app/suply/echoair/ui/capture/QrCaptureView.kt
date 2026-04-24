@@ -7,13 +7,39 @@ import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionStrategy
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanner
@@ -21,6 +47,8 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import timber.log.Timber
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
@@ -32,6 +60,20 @@ import java.util.concurrent.atomic.AtomicBoolean
  * QR-only format filter, and a one-shot debounce so the first valid code
  * advances immediately and subsequent frames on the same code don't fire
  * repeated onScanned callbacks.
+ *
+ * On a valid decode (classified as [QrPayloadParser.ParsedQr.Device] or
+ * [QrPayloadParser.ParsedQr.Awb]) three synchronised feedback signals fire:
+ *   1. Haptic tick (LongPress strength, matching the AWB-submit vocabulary).
+ *   2. Viewfinder frame pulse — 200ms scale + colour tween from neutral
+ *      white to success green and back.
+ *   3. Centred success tick overlay — ~300ms fade/scale in, covered by the
+ *      loading overlay the parent screen shows once onScanned dispatches.
+ * Silence on [QrPayloadParser.ParsedQr.Unknown] — user just keeps scanning
+ * and any eventual failure surfaces through the UnrecognisedQr dialog.
+ *
+ * No sound. See the design-direction thread in the brief — warehouse noise
+ * and office-quiet environments both rule out reliable audio feedback for
+ * this surface.
  */
 @Composable
 fun QrCaptureView(onScanned: (payload: String) -> Unit) {
@@ -46,6 +88,10 @@ fun QrCaptureView(onScanned: (payload: String) -> Unit) {
         )
     }
     val consumed = remember { AtomicBoolean(false) }
+    val haptics = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+
+    var successFlash by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -54,67 +100,132 @@ fun QrCaptureView(onScanned: (payload: String) -> Unit) {
         }
     }
 
-    AndroidView(
-        factory = { ctx ->
-            val preview = PreviewView(ctx).apply {
-                // Continuous autofocus is the CameraX default on a PreviewView
-                // bound to the lifecycle; no extra setup needed. Keep in mind
-                // when diagnosing focus issues on specific devices.
-                scaleType = PreviewView.ScaleType.FILL_CENTER
-            }
-            val providerFuture = ProcessCameraProvider.getInstance(ctx)
-            providerFuture.addListener({
-                val provider = providerFuture.get()
-
-                val previewUse = Preview.Builder().build().apply {
-                    setSurfaceProvider(preview.surfaceProvider)
+    Box(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx ->
+                val preview = PreviewView(ctx).apply {
+                    scaleType = PreviewView.ScaleType.FILL_CENTER
                 }
+                val providerFuture = ProcessCameraProvider.getInstance(ctx)
+                providerFuture.addListener({
+                    val provider = providerFuture.get()
 
-                // 720p is a sweet spot for QR: high enough for small labels
-                // on shipping docs, low enough that ML Kit returns results in
-                // well under 100 ms per frame on mid-range hardware.
-                val analysisResolution = ResolutionSelector.Builder()
-                    .setResolutionStrategy(
-                        ResolutionStrategy(
-                            android.util.Size(1280, 720),
-                            ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
-                        )
-                    )
-                    .build()
-
-                val analysis = ImageAnalysis.Builder()
-                    .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-                    .setResolutionSelector(analysisResolution)
-                    .build()
-                    .also { ia ->
-                        ia.setAnalyzer(executor) { proxy ->
-                            if (consumed.get()) { proxy.close(); return@setAnalyzer }
-                            val media = proxy.image
-                            if (media == null) { proxy.close(); return@setAnalyzer }
-                            val input = InputImage.fromMediaImage(media, proxy.imageInfo.rotationDegrees)
-                            scanner.process(input)
-                                .addOnSuccessListener { codes ->
-                                    val value = codes.firstNotNullOfOrNull { it.rawValue }
-                                    if (value != null && consumed.compareAndSet(false, true)) {
-                                        Timber.d("QR detected: %s", value)
-                                        onScanned(value)
-                                    }
-                                }
-                                .addOnFailureListener { Timber.w(it, "QR process failed") }
-                                .addOnCompleteListener { proxy.close() }
-                        }
+                    val previewUse = Preview.Builder().build().apply {
+                        setSurfaceProvider(preview.surfaceProvider)
                     }
 
-                provider.unbindAll()
-                provider.bindToLifecycle(
-                    lifecycle, CameraSelector.DEFAULT_BACK_CAMERA, previewUse, analysis
-                )
-            }, ContextCompat.getMainExecutor(ctx))
-            preview
-        },
-        modifier = Modifier.fillMaxSize()
+                    val analysisResolution = ResolutionSelector.Builder()
+                        .setResolutionStrategy(
+                            ResolutionStrategy(
+                                android.util.Size(1280, 720),
+                                ResolutionStrategy.FALLBACK_RULE_CLOSEST_HIGHER_THEN_LOWER
+                            )
+                        )
+                        .build()
+
+                    val analysis = ImageAnalysis.Builder()
+                        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                        .setResolutionSelector(analysisResolution)
+                        .build()
+                        .also { ia ->
+                            ia.setAnalyzer(executor) { proxy ->
+                                if (consumed.get()) { proxy.close(); return@setAnalyzer }
+                                val media = proxy.image
+                                if (media == null) { proxy.close(); return@setAnalyzer }
+                                val input = InputImage.fromMediaImage(media, proxy.imageInfo.rotationDegrees)
+                                scanner.process(input)
+                                    .addOnSuccessListener { codes ->
+                                        val value = codes.firstNotNullOfOrNull { it.rawValue }
+                                        if (value != null && consumed.compareAndSet(false, true)) {
+                                            Timber.d("QR detected: %s", value)
+                                            val parsed = QrPayloadParser.parse(value)
+                                            if (parsed != QrPayloadParser.ParsedQr.Unknown) {
+                                                // Visual + tactile feedback fires immediately;
+                                                // onScanned is delayed ~180ms so the tick has
+                                                // time to register before the parent screen's
+                                                // loading overlay takes over.
+                                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                successFlash = true
+                                                scope.launch {
+                                                    delay(180)
+                                                    onScanned(value)
+                                                }
+                                            } else {
+                                                // Silent on unknown — UnrecognisedQr dialog
+                                                // will surface the failure state.
+                                                onScanned(value)
+                                            }
+                                        }
+                                    }
+                                    .addOnFailureListener { Timber.w(it, "QR process failed") }
+                                    .addOnCompleteListener { proxy.close() }
+                            }
+                        }
+
+                    provider.unbindAll()
+                    provider.bindToLifecycle(
+                        lifecycle, CameraSelector.DEFAULT_BACK_CAMERA, previewUse, analysis
+                    )
+                }, ContextCompat.getMainExecutor(ctx))
+                preview
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        ViewfinderFrame(highlight = successFlash, modifier = Modifier.align(Alignment.Center))
+        SuccessTick(visible = successFlash, modifier = Modifier.align(Alignment.Center))
+    }
+}
+
+/**
+ * Large rounded-corner rectangle sitting in the centre of the viewfinder.
+ * On success, the border colour tweens to [SUCCESS_GREEN] and the whole
+ * frame scales 1.0 → 1.05 → 1.0 over ~200ms. The two tweens run
+ * concurrently so the pulse reads as a single "got it" event.
+ */
+@Composable
+private fun ViewfinderFrame(highlight: Boolean, modifier: Modifier = Modifier) {
+    val borderColour by animateColorAsState(
+        targetValue = if (highlight) SUCCESS_GREEN else Color.White.copy(alpha = 0.65f),
+        animationSpec = tween(durationMillis = 200),
+        label = "viewfinderBorder"
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (highlight) 1.05f else 1.0f,
+        animationSpec = tween(durationMillis = 200),
+        label = "viewfinderScale"
+    )
+    Box(
+        modifier = modifier
+            .size(260.dp)
+            .scale(scale)
+            .border(3.dp, borderColour, RoundedCornerShape(24.dp))
     )
 }
+
+/**
+ * Fades + scales a big green check into the centre of the viewfinder the
+ * moment a valid decode lands. The parent screen's loading overlay will
+ * cover it within ~180ms, so it reads as an instant confirmation flash.
+ */
+@Composable
+private fun SuccessTick(visible: Boolean, modifier: Modifier = Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(tween(80)) + scaleIn(initialScale = 0.8f, animationSpec = tween(120)),
+        exit = fadeOut(tween(120)) + scaleOut(targetScale = 0.9f, animationSpec = tween(120)),
+        modifier = modifier
+    ) {
+        Icon(
+            imageVector = Icons.Filled.CheckCircle,
+            contentDescription = null,
+            tint = SUCCESS_GREEN,
+            modifier = Modifier.size(96.dp)
+        )
+    }
+}
+
+private val SUCCESS_GREEN = Color(0xFF34C759)
 
 object QrPayloadParser {
 
