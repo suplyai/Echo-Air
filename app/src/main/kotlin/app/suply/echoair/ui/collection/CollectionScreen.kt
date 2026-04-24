@@ -5,7 +5,15 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -30,7 +38,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.colorResource
@@ -42,6 +52,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import app.suply.echoair.R
 import app.suply.echoair.ble.CollectionOrchestrator.Device
 import app.suply.echoair.ble.CollectionOrchestrator.DeviceState
+import app.suply.echoair.ui.haptics.EchoHaptics
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -191,6 +202,18 @@ private fun ShipmentHeader(
 @Composable
 private fun DeviceRow(device: Device, onRetry: () -> Unit) {
     val progress by animateFloatAsState(targetValue = device.progress, label = "deviceProgress")
+    val appContext = LocalContext.current.applicationContext
+
+    // State-entry haptics — soft tap when the device first comes into range,
+    // firm tick when collection completes. Keyed on state so they each fire
+    // exactly once per transition.
+    LaunchedEffect(device.state) {
+        when (device.state) {
+            DeviceState.IN_RANGE -> EchoHaptics.softTap(appContext)
+            DeviceState.COLLECTED -> EchoHaptics.tick(appContext)
+            else -> Unit
+        }
+    }
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
         Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -209,11 +232,22 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
                 }
             }
 
+            // Progress bar is indeterminate while connecting (progress == 0)
+            // or finalising (progress >= 1.0) — both are "work happening but
+            // nothing new to report" states, and the shimmer keeps the screen
+            // feeling alive. Determinate fill in between.
             if (device.state == DeviceState.SYNCING) {
-                LinearProgressIndicator(
-                    progress = { progress },
-                    modifier = Modifier.fillMaxWidth().height(4.dp)
-                )
+                val indeterminate = progress <= 0.001f || progress >= 0.999f
+                if (indeterminate) {
+                    LinearProgressIndicator(
+                        modifier = Modifier.fillMaxWidth().height(4.dp)
+                    )
+                } else {
+                    LinearProgressIndicator(
+                        progress = { progress },
+                        modifier = Modifier.fillMaxWidth().height(4.dp)
+                    )
+                }
             }
 
             val detailParts = buildList {
@@ -251,6 +285,23 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
     }
 }
 
+/**
+ * Animated state indicator. Continuously alive through every async state so
+ * the screen never reads as "hung" during the 2–5 second invisible windows
+ * (BLE scan wait, GATT negotiation, /api/echo-scan POST).
+ *
+ * - SEARCHING: slow concentric radar-pulse ring behind a static glyph.
+ *   Loops forever at ~1.6s period. Stops the moment state changes.
+ * - IN_RANGE: one-shot 1.0 → 1.15 → 1.0 scale pulse + colour nudge; haptic
+ *   fires on state entry via LaunchedEffect in DeviceRow.
+ * - SYNCING: subtle breathing opacity on the background, ~1.8s period.
+ *   Rotating Sync icon if progress hasn't started yet; the icon holds
+ *   still once real records are flowing (the progress bar carries the
+ *   motion then, so doubling up reads as frantic).
+ * - COLLECTED: on state entry, a glow ring briefly expands and fades.
+ *   Haptic fires via LaunchedEffect in DeviceRow. Settles into the
+ *   static check circle.
+ */
 @Composable
 private fun StateIndicator(state: DeviceState, progress: Float) {
     val (icon: ImageVector, color: Color) = when (state) {
@@ -261,14 +312,127 @@ private fun StateIndicator(state: DeviceState, progress: Float) {
         DeviceState.MISSING -> Icons.Default.WarningAmber to colorResource(R.color.state_missing)
         DeviceState.ERROR -> Icons.Default.ErrorOutline to colorResource(R.color.state_error)
     }
+
+    val transition = rememberInfiniteTransition(label = "indicatorAmbient")
+
+    // SEARCHING: radar ring scales 1.0 → 1.8 and fades 0.45 → 0.0.
+    val radarScale by transition.animateFloat(
+        initialValue = 1.0f, targetValue = 1.8f,
+        animationSpec = infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart),
+        label = "radarScale"
+    )
+    val radarAlpha by transition.animateFloat(
+        initialValue = 0.45f, targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart),
+        label = "radarAlpha"
+    )
+
+    // SYNCING (pre-progress): background alpha breathes 0.12 → 0.25.
+    val syncingBreath by transition.animateFloat(
+        initialValue = 0.12f, targetValue = 0.25f,
+        animationSpec = infiniteRepeatable(tween(1800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "syncingBreath"
+    )
+
+    // SYNCING (pre-progress): sync glyph spins. Stops once real progress lands
+    // so the progress bar becomes the sole motion channel.
+    val syncRotation by transition.animateFloat(
+        initialValue = 0f, targetValue = 360f,
+        animationSpec = infiniteRepeatable(tween(1200, easing = LinearEasing), RepeatMode.Restart),
+        label = "syncRotation"
+    )
+
+    // IN_RANGE: one-shot acknowledgment pulse on entry.
+    val inRangePulse by animateFloatAsState(
+        targetValue = if (state == DeviceState.IN_RANGE) 1.15f else 1.0f,
+        animationSpec = tween(260, easing = FastOutSlowInEasing),
+        label = "inRangePulse"
+    )
+
+    // COLLECTED: one-shot scale bump on entry.
+    val collectedBump by animateFloatAsState(
+        targetValue = if (state == DeviceState.COLLECTED) 1.0f else 0.9f,
+        animationSpec = tween(320, easing = FastOutSlowInEasing),
+        label = "collectedBump"
+    )
+
+    val backgroundAlpha by animateColorAsState(
+        targetValue = color.copy(
+            alpha = when {
+                state == DeviceState.SYNCING && progress <= 0.001f -> syncingBreath
+                state == DeviceState.COLLECTED -> 0.18f
+                else -> 0.12f
+            }
+        ),
+        animationSpec = tween(200),
+        label = "indicatorBg"
+    )
+
     Box(
-        modifier = Modifier
-            .size(44.dp)
-            .clip(CircleShape)
-            .background(color.copy(alpha = 0.12f)),
+        modifier = Modifier.size(60.dp),
         contentAlignment = Alignment.Center
     ) {
-        Icon(icon, contentDescription = null, tint = color)
+        // SEARCHING radar ring — rendered behind the main circle.
+        if (state == DeviceState.SEARCHING) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .graphicsLayer {
+                        scaleX = radarScale
+                        scaleY = radarScale
+                        alpha = radarAlpha
+                    }
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.55f))
+            )
+        }
+
+        // COLLECTED glow ring — briefly expands and fades when the tick lands.
+        if (state == DeviceState.COLLECTED) {
+            val glowScale by animateFloatAsState(
+                targetValue = if (state == DeviceState.COLLECTED) 1.6f else 1.0f,
+                animationSpec = tween(480, easing = FastOutSlowInEasing),
+                label = "collectedGlowScale"
+            )
+            val glowAlpha by animateFloatAsState(
+                targetValue = if (state == DeviceState.COLLECTED) 0.0f else 0.4f,
+                animationSpec = tween(480, easing = FastOutSlowInEasing),
+                label = "collectedGlowAlpha"
+            )
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .graphicsLayer {
+                        scaleX = glowScale
+                        scaleY = glowScale
+                        alpha = glowAlpha
+                    }
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.55f))
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .size(44.dp)
+                .scale(
+                    when (state) {
+                        DeviceState.IN_RANGE -> inRangePulse
+                        DeviceState.COLLECTED -> collectedBump
+                        else -> 1.0f
+                    }
+                )
+                .clip(CircleShape)
+                .background(backgroundAlpha),
+            contentAlignment = Alignment.Center
+        ) {
+            val iconModifier = if (state == DeviceState.SYNCING && progress <= 0.001f) {
+                Modifier.graphicsLayer { rotationZ = syncRotation }
+            } else {
+                Modifier
+            }
+            Icon(icon, contentDescription = null, tint = color, modifier = iconModifier)
+        }
     }
 }
 
@@ -276,7 +440,11 @@ private fun StateIndicator(state: DeviceState, progress: Float) {
 private fun stateLabel(device: Device): String = when (device.state) {
     DeviceState.SEARCHING -> stringResource(R.string.collection_searching)
     DeviceState.IN_RANGE -> stringResource(R.string.collection_in_range)
-    DeviceState.SYNCING -> "${stringResource(R.string.collection_syncing)}  ${(device.progress * 100).toInt()}%"
+    DeviceState.SYNCING -> when {
+        device.progress <= 0.001f -> "Connecting…"
+        device.progress >= 0.999f -> "Finalising…"
+        else -> "${stringResource(R.string.collection_syncing)}  ${(device.progress * 100).toInt()}%"
+    }
     DeviceState.COLLECTED -> stringResource(R.string.collection_collected_state)
     DeviceState.MISSING -> stringResource(R.string.collection_missing)
     DeviceState.ERROR -> stringResource(R.string.collection_error)
