@@ -75,10 +75,11 @@
     <string name="collection_hint_contact_shipper">このデバイスが見つかりません。紛失の可能性がある場合は荷主にご連絡ください。</string>
     <string name="collection_finish">全デバイスの収集完了 — 終了</string>
     <string name="collection_finding_devices">デバイスを検索中…</string>
-    <string name="collection_close_partial">残りのデバイスを含めずに貨物を終了</string>
-    <plurals name="collection_more_devices_to_find">
-        <item quantity="other">残り %1$d 台</item>
+    <string name="collection_collecting_label">収集中…</string>
+    <plurals name="collection_collecting_n_of_m">
+        <item quantity="other">%2$d 台中 %1$d 台収集済み</item>
     </plurals>
+    <string name="collection_close_partial">残りのデバイスを含めずに貨物を終了</string>
     <string name="collection_close_dialog_title_finish">貨物を終了しますか?</string>
     <plurals name="collection_close_dialog_title_partial">
         <item quantity="other">%1$d 台未収集のまま終了しますか?</item>

@@ -78,11 +78,12 @@
     <string name="collection_hint_contact_shipper">No se encuentra este dispositivo. Contacta al remitente si crees que puede faltar.</string>
     <string name="collection_finish">Todos los dispositivos recolectados — finalizar</string>
     <string name="collection_finding_devices">Buscando dispositivos…</string>
-    <string name="collection_close_partial">Cerrar envío sin los dispositivos restantes</string>
-    <plurals name="collection_more_devices_to_find">
-        <item quantity="one">Falta 1 dispositivo por encontrar</item>
-        <item quantity="other">Faltan %1$d dispositivos por encontrar</item>
+    <string name="collection_collecting_label">Recolectando…</string>
+    <plurals name="collection_collecting_n_of_m">
+        <item quantity="one">%1$d de %2$d recolectados</item>
+        <item quantity="other">%1$d de %2$d recolectados</item>
     </plurals>
+    <string name="collection_close_partial">Cerrar envío sin los dispositivos restantes</string>
     <string name="collection_close_dialog_title_finish">¿Finalizar envío?</string>
     <plurals name="collection_close_dialog_title_partial">
         <item quantity="one">¿Cerrar sin 1 dispositivo?</item>

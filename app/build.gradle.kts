@@ -15,8 +15,8 @@ android {
         applicationId = "app.suply.echoair"
         minSdk = 30
         targetSdk = 35
-        versionCode = 31
-        versionName = "0.4.6"
+        versionCode = 32
+        versionName = "0.4.7"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }

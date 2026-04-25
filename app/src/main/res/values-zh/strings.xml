@@ -75,10 +75,11 @@
     <string name="collection_hint_contact_shipper">未找到此设备。如认为可能缺失，请联系发货方。</string>
     <string name="collection_finish">所有设备已收集 — 完成</string>
     <string name="collection_finding_devices">正在查找设备…</string>
-    <string name="collection_close_partial">关闭货运并忽略剩余设备</string>
-    <plurals name="collection_more_devices_to_find">
-        <item quantity="other">还需找到 %1$d 个设备</item>
+    <string name="collection_collecting_label">正在收集…</string>
+    <plurals name="collection_collecting_n_of_m">
+        <item quantity="other">已收集 %1$d / %2$d</item>
     </plurals>
+    <string name="collection_close_partial">关闭货运并忽略剩余设备</string>
     <string name="collection_close_dialog_title_finish">完成此次货运?</string>
     <plurals name="collection_close_dialog_title_partial">
         <item quantity="other">未收集 %1$d 个设备就关闭?</item>

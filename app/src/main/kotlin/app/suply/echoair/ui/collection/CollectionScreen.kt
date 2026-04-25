@@ -125,10 +125,27 @@ fun CollectionScreen(
             )
         },
         bottomBar = {
+            // Foolproof gate: the bottom action only becomes tappable
+            // when EVERY device is in a final state (Collected, Error,
+            // or Missing). state.allScanned (from the backend's
+            // /api/echo-scan response) is intentionally not consulted —
+            // a prior session's successful POST can flip it to true
+            // even while a current-session device is mid-sync, which
+            // would let the user tap "finish" while a connection is
+            // still active. Anything in flight (Searching / In range /
+            // Syncing) holds the gate closed. The "Close shipment
+            // without remaining devices" link below is the deliberate,
+            // separate escape hatch.
+            val allFinal = state.devices.isNotEmpty() &&
+                state.devices.all {
+                    it.state == DeviceState.COLLECTED ||
+                        it.state == DeviceState.ERROR ||
+                        it.state == DeviceState.MISSING
+                }
             BottomBar(
                 collected = state.collectedCount,
                 total = state.totalCount,
-                allScanned = state.allScanned || (state.totalCount > 0 && state.collectedCount == state.totalCount),
+                allFinal = allFinal,
                 onFinish = onClose,
                 onClosePartial = { confirmClose = true }
             )
@@ -747,60 +764,68 @@ private fun stateLabel(device: Device): String = when (device.state) {
 }
 
 /**
- * Sticky state-aware bottom bar. Always visible — never scrolls out of view.
- * Transforms in place between the two states:
+ * Sticky state-aware bottom bar. Always visible. Transforms in place
+ * between two states governed by a strict local invariant:
  *
- *   IN-PROGRESS (N remaining, or total still unknown):
- *     - Muted surface-variant background, onSurfaceVariant text.
- *     - Reads as STATUS, not ACTION: "N more devices to find" or
- *       "Finding devices…" (pre-load).
- *     - Non-tappable. The secondary "Close shipment without remaining
- *       devices" link sits below as a text-only affordance for the
- *       genuinely-lost-device escape hatch.
- *
- *   ALL-COLLECTED:
+ *   ALL-FINAL (every device is COLLECTED, ERROR, or MISSING):
  *     - Background crossfades to primary over 200ms.
- *     - Text becomes the CTA ("All devices collected — finish").
- *     - One-shot 1.0 → 1.05 → 1.0 scale pulse (~300ms) on the state flip.
- *     - Firm [EchoHaptics.tick] on the same flip, matching the
- *       DEVICE_COLLECTED haptic — "the moment registers".
- *     - Now tappable; taps fire [onFinish].
- *     - Close-partial link hides — there's nothing to close without.
+ *     - Text becomes the verb-form CTA ("All devices collected —
+ *       finish"). Tappable; taps fire [onFinish].
+ *     - One-shot 1.0 → 1.05 → 1.0 scale pulse (~300ms) on the state
+ *       flip + firm [EchoHaptics.tick] on the same flip, matching
+ *       the per-device DEVICE_COLLECTED haptic so the end-of-shipment
+ *       moment shares the tactile vocabulary of each individual scan.
+ *     - Close-partial link hides — there's nothing left to close without.
  *
- * Pulse + haptic only fire on the !allScanned → allScanned *transition* —
- * initial composition with allScanned already true (e.g. after rotation)
- * stays quiet.
+ *   IN-FLIGHT (any device is SEARCHING / IN_RANGE / SYNCING):
+ *     - Muted surface-variant background, onSurfaceVariant text.
+ *     - Reads as STATUS, never as ACTION: "N of M collected",
+ *       "Collecting…" or "Finding devices…" depending on what we
+ *       know. No verbs, no call to action.
+ *     - Strictly non-tappable: the .clickable modifier is omitted
+ *       entirely so a press has no ripple, no callback, no haptic.
+ *       This is the foolproof requirement — a tap during a live GATT
+ *       sync would either drop the in-flight device's records or
+ *       close the shipment with a connection still up. Stressed
+ *       warehouse operators will tap it; we don't let them.
+ *     - The "Close shipment without remaining devices" text-only
+ *       link below stays available as the deliberate escape hatch
+ *       for a genuinely-missing device. Secondary affordance, not
+ *       primary.
+ *
+ * Pulse + haptic only fire on the !allFinal → allFinal *transition* —
+ * initial composition with allFinal already true (rotation, return
+ * from background) stays quiet.
  */
 @Composable
 private fun BottomBar(
     collected: Int,
     total: Int,
-    allScanned: Boolean,
+    allFinal: Boolean,
     onFinish: () -> Unit,
     onClosePartial: () -> Unit
 ) {
     val context = LocalContext.current.applicationContext
-    val remaining = (total - collected).coerceAtLeast(0)
 
     val pulseScale = remember { Animatable(1f) }
-    var previouslyAllScanned by remember { mutableStateOf(allScanned) }
-    LaunchedEffect(allScanned) {
-        if (allScanned && !previouslyAllScanned) {
+    var previouslyAllFinal by remember { mutableStateOf(allFinal) }
+    LaunchedEffect(allFinal) {
+        if (allFinal && !previouslyAllFinal) {
             EchoHaptics.tick(context)
             pulseScale.animateTo(1.05f, tween(150, easing = FastOutSlowInEasing))
             pulseScale.animateTo(1.0f, tween(150, easing = FastOutSlowInEasing))
         }
-        previouslyAllScanned = allScanned
+        previouslyAllFinal = allFinal
     }
 
     val barColor by animateColorAsState(
-        targetValue = if (allScanned) MaterialTheme.colorScheme.primary
+        targetValue = if (allFinal) MaterialTheme.colorScheme.primary
         else MaterialTheme.colorScheme.surfaceVariant,
         animationSpec = tween(200, easing = FastOutSlowInEasing),
         label = "bottomBarBg"
     )
     val textColor by animateColorAsState(
-        targetValue = if (allScanned) MaterialTheme.colorScheme.onPrimary
+        targetValue = if (allFinal) MaterialTheme.colorScheme.onPrimary
         else MaterialTheme.colorScheme.onSurfaceVariant,
         animationSpec = tween(200, easing = FastOutSlowInEasing),
         label = "bottomBarText"
@@ -823,8 +848,12 @@ private fun BottomBar(
                     }
                     .clip(RoundedCornerShape(28.dp))
                     .background(barColor)
+                    // Critical: the .clickable modifier is added ONLY
+                    // when allFinal is true. While in flight there's
+                    // no clickable in the chain, so a press is a no-op
+                    // — no ripple, no callback, no haptic.
                     .then(
-                        if (allScanned) Modifier.clickable(onClick = onFinish)
+                        if (allFinal) Modifier.clickable(onClick = onFinish)
                         else Modifier
                     )
                     .heightIn(min = 56.dp)
@@ -833,20 +862,22 @@ private fun BottomBar(
             ) {
                 Text(
                     text = when {
-                        allScanned -> stringResource(R.string.collection_finish)
-                        total > 0 -> pluralStringResource(
-                            R.plurals.collection_more_devices_to_find,
-                            remaining,
-                            remaining
+                        allFinal -> stringResource(R.string.collection_finish)
+                        total > 0 && collected > 0 -> pluralStringResource(
+                            R.plurals.collection_collecting_n_of_m,
+                            collected,
+                            collected,
+                            total
                         )
+                        total > 0 -> stringResource(R.string.collection_collecting_label)
                         else -> stringResource(R.string.collection_finding_devices)
                     },
                     style = MaterialTheme.typography.titleMedium,
                     color = textColor,
-                    fontWeight = if (allScanned) FontWeight.SemiBold else FontWeight.Medium
+                    fontWeight = if (allFinal) FontWeight.SemiBold else FontWeight.Medium
                 )
             }
-            if (!allScanned) {
+            if (!allFinal) {
                 TextButton(
                     onClick = onClosePartial,
                     modifier = Modifier.fillMaxWidth()

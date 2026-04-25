@@ -106,12 +106,20 @@
     <string name="collection_hint_contact_shipper">Can\'t find this device. Contact your shipper if it may be missing.</string>
     <!-- Bottom bar -->
     <string name="collection_finish">All devices collected — finish</string>
+    <!-- Status text shown when no expected-devices roster has loaded yet
+         (totalCount == 0). Reads as activity, not action. -->
     <string name="collection_finding_devices">Finding devices…</string>
-    <string name="collection_close_partial">Close shipment without remaining devices</string>
-    <plurals name="collection_more_devices_to_find">
-        <item quantity="one">1 more device to find</item>
-        <item quantity="other">%1$d more devices to find</item>
+    <!-- Status text shown while devices are loaded but none collected yet. -->
+    <string name="collection_collecting_label">Collecting…</string>
+    <!-- Progress text shown while at least one device has been collected
+         but others are still in flight. The bar is non-tappable in this
+         state — the text is a status indicator, not a CTA.
+         %1$d = collected, %2$d = total. -->
+    <plurals name="collection_collecting_n_of_m">
+        <item quantity="one">%1$d of %2$d collected</item>
+        <item quantity="other">%1$d of %2$d collected</item>
     </plurals>
+    <string name="collection_close_partial">Close shipment without remaining devices</string>
     <!-- Close-confirmation dialog -->
     <string name="collection_close_dialog_title_finish">Finish shipment?</string>
     <plurals name="collection_close_dialog_title_partial">
