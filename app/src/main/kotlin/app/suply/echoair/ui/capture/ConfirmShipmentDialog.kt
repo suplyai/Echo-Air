@@ -159,13 +159,44 @@ fun ConfirmShipmentSheet(
 
             Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // Device count
+            // Device count + (Multiple Package Shipment) breakdown when
+            // the shipment has more than one unit. Single-unit shipments
+            // render exactly as pre-0.4.9 — just "%d devices to collect".
+            //
+            // Multi-unit rendering follows the air-cargo convention: full
+            // term "Multiple Package Shipment" on first reference (badge
+            // above the count line), MPS acronym used everywhere after,
+            // unit count rendered with the localised unit noun, and a
+            // verbatim list of customer-supplied unit labels below as a
+            // brief breakdown so the consignee knows what to expect at
+            // the cargo before they walk to it.
             val deviceCount = shipment.devices.size
+            val unitCount = shipment.units.size
+            val isMultiUnit = unitCount > 1
+
+            if (isMultiUnit) {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+                ) {
+                    Text(
+                        text = stringResource(R.string.confirm_mps_badge),
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
             Text(
-                text = if (deviceCount == 0) {
-                    stringResource(R.string.confirm_no_devices_expected)
-                } else {
-                    pluralStringResource(
+                text = when {
+                    deviceCount == 0 -> stringResource(R.string.confirm_no_devices_expected)
+                    isMultiUnit -> stringResource(
+                        R.string.confirm_mps_summary,
+                        unitCount,
+                        deviceCount
+                    )
+                    else -> pluralStringResource(
                         R.plurals.confirm_devices_to_collect,
                         deviceCount,
                         deviceCount
@@ -173,6 +204,24 @@ fun ConfirmShipmentSheet(
                 },
                 style = MaterialTheme.typography.titleMedium
             )
+
+            // Per-unit breakdown — labels rendered verbatim from the
+            // shipper's dashboard config ("ULD 1", "Pallet A", "Lote-247",
+            // whatever). When a label is null/blank (the synthetic
+            // "Unattributed" edge case), the localised fallback is used.
+            // Truncates implicitly via softWrap so long unit lists wrap
+            // gracefully without dominating the sheet.
+            if (isMultiUnit) {
+                val fallback = stringResource(R.string.collection_unattributed_unit)
+                val breakdown = shipment.units
+                    .map { it.label?.takeIf { l -> l.isNotBlank() } ?: fallback }
+                    .joinToString(separator = "  ·  ")
+                Text(
+                    text = breakdown,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
             // CTAs
             Row(

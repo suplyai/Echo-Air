@@ -67,6 +67,46 @@ data class ShipmentDto(
     @SerialName("commodity_name") val commodityName: String? = null,
     @SerialName("commodity_category") val commodityCategory: String? = null,
     @SerialName("cargo_profile") val cargoProfile: CargoProfileDto? = null,
+    val devices: List<ShipmentDeviceDto> = emptyList(),
+    /**
+     * Multi-unit / Multiple Package Shipment (MPS) breakdown. The flat
+     * [devices] list above is preserved for backward compatibility — it
+     * still contains every device with its unit_id populated. This list
+     * is the per-unit view of the same devices, bucketed by their unit.
+     *
+     * Single-unit shipments arrive with [units].size == 1; multi-unit
+     * shipments have size > 1. Empty list means the backend hasn't
+     * populated units yet (older deployments) — the app falls back to
+     * the flat-list rendering, which is identical behaviour to pre-MPS.
+     *
+     * Devices with a null unit_id end up in a synthetic "Unattributed"
+     * unit at the end of this list. Render the unit's [label] verbatim
+     * when present; if blank, fall back to the localised
+     * collection_unattributed_unit string.
+     */
+    val units: List<UnitDto> = emptyList()
+)
+
+/**
+ * One physical pallet / ULD / lot inside a Multiple Package Shipment.
+ * The [label] is whatever the shipper configured on the dashboard
+ * ("ULD 1", "Pallet A", "Lote-247", etc.) and is rendered verbatim
+ * in customer-facing copy — see the vocabulary section in the v0.4.9
+ * brief: customer's stored label always wins over Suply's terminology.
+ */
+@Serializable
+data class UnitDto(
+    val id: String,
+    /** Customer-supplied label. May be null/blank for the synthetic "Unattributed" unit. */
+    val label: String? = null,
+    /** Free-form physical position descriptor, e.g. "stack 3, row 2". Optional. */
+    val position: String? = null,
+    /** 1-based ordering on the shipment, matches dashboard display order. */
+    @SerialName("sequence_index") val sequenceIndex: Int? = null,
+    /** Per-unit commodity override; usually null for homogeneous shipments. */
+    @SerialName("commodity_override") val commodityOverride: String? = null,
+    /** Devices bucketed under this unit. Same device objects as ShipmentDto.devices,
+     *  filtered by unit_id; the app reads either side depending on the screen. */
     val devices: List<ShipmentDeviceDto> = emptyList()
 )
 
@@ -96,7 +136,11 @@ data class ShipmentDeviceDto(
      */
     @SerialName("scanned_at") val scannedAt: String? = null,
     /** Inferred position in the cargo (pallet / stack / etc.) — free-form. */
-    @SerialName("inferred_position") val inferredPosition: String? = null
+    @SerialName("inferred_position") val inferredPosition: String? = null,
+    /** Multi-unit attribution. References [UnitDto.id]; null only for the
+     *  rare "Unattributed" edge case (renders gracefully under the synthetic
+     *  unit at the end of [ShipmentDto.units]). */
+    @SerialName("unit_id") val unitId: String? = null
 )
 
 @Serializable

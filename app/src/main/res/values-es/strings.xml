@@ -87,6 +87,14 @@
         <item quantity="other">%1$d de %2$d recolectados</item>
     </plurals>
     <string name="collection_close_partial">Cerrar envío sin los dispositivos restantes</string>
+
+    <string name="confirm_mps_badge">Envío de múltiples paquetes (MPS)</string>
+    <string name="confirm_mps_summary">%1$d unidades · %2$d dispositivos en total</string>
+    <plurals name="collection_unit_progress">
+        <item quantity="one">%1$d de %2$d recolectados</item>
+        <item quantity="other">%1$d de %2$d recolectados</item>
+    </plurals>
+    <string name="collection_unattributed_unit">Sin atribuir</string>
     <string name="collection_close_dialog_title_finish">¿Finalizar envío?</string>
     <plurals name="collection_close_dialog_title_partial">
         <item quantity="one">¿Cerrar sin 1 dispositivo?</item>

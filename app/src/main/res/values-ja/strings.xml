@@ -83,6 +83,13 @@
         <item quantity="other">%2$d 台中 %1$d 台収集済み</item>
     </plurals>
     <string name="collection_close_partial">残りのデバイスを含めずに貨物を終了</string>
+
+    <string name="confirm_mps_badge">複数個口貨物 (MPS)</string>
+    <string name="confirm_mps_summary">%1$d ユニット · 合計 %2$d 台</string>
+    <plurals name="collection_unit_progress">
+        <item quantity="other">%2$d 台中 %1$d 台収集済み</item>
+    </plurals>
+    <string name="collection_unattributed_unit">未割当</string>
     <string name="collection_close_dialog_title_finish">貨物を終了しますか?</string>
     <plurals name="collection_close_dialog_title_partial">
         <item quantity="other">%1$d 台未収集のまま終了しますか?</item>

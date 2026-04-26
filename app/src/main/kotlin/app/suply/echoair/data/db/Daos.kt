@@ -49,6 +49,21 @@ interface DeviceDao {
 }
 
 @Dao
+interface UnitDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAll(units: List<CachedUnit>)
+
+    @Query("SELECT * FROM units WHERE shipmentId = :shipmentId ORDER BY sequenceIndex ASC, id ASC")
+    suspend fun forShipmentOnce(shipmentId: String): List<CachedUnit>
+
+    /** Replace the unit roster for a shipment in one transaction. The
+     *  consignee endpoint always returns the full list, so we don't need
+     *  partial-update semantics — wipe + insert is correct. */
+    @Query("DELETE FROM units WHERE shipmentId = :shipmentId")
+    suspend fun deleteForShipment(shipmentId: String)
+}
+
+@Dao
 interface RecordDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(records: List<TemperatureRecord>)

@@ -23,6 +23,7 @@ object DataModule {
 
     @Provides fun provideShipmentDao(db: EchoAirDatabase) = db.shipments()
     @Provides fun provideDeviceDao(db: EchoAirDatabase) = db.devices()
+    @Provides fun provideUnitDao(db: EchoAirDatabase) = db.units()
     @Provides fun provideRecordDao(db: EchoAirDatabase) = db.records()
     @Provides fun providePendingUploadDao(db: EchoAirDatabase) = db.uploads()
 }

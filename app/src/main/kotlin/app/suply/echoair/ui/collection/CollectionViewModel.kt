@@ -9,6 +9,7 @@ import app.suply.echoair.ble.CollectionOrchestrator
 import app.suply.echoair.ble.service.CollectionScanService
 import app.suply.echoair.data.ShipmentRepository
 import app.suply.echoair.data.db.CachedShipment
+import app.suply.echoair.data.db.CachedUnit
 import app.suply.echoair.location.LocationCapture
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,14 +34,29 @@ class CollectionViewModel @Inject constructor(
     private val _shipment = MutableStateFlow<CachedShipment?>(null)
     val shipment: StateFlow<CachedShipment?> = _shipment.asStateFlow()
 
+    /**
+     * Multiple Package Shipment unit roster. Empty for legacy / single-unit
+     * shipments — the Collection screen falls back to flat rendering in
+     * that case. Sequence is server-defined (sequence_index ASC).
+     */
+    private val _units = MutableStateFlow<List<CachedUnit>>(emptyList())
+    val units: StateFlow<List<CachedUnit>> = _units.asStateFlow()
+
     fun start(shipmentId: String) {
         viewModelScope.launch {
             val s = repo.getShipment(shipmentId) ?: return@launch
             _shipment.value = s
+            _units.value = repo.unitsForShipment(shipmentId)
             val roster = repo.devicesForShipment(shipmentId)
             orchestrator.start(
                 shipmentId,
-                roster.map { CollectionOrchestrator.ExpectedDevice(it.deviceId, it.mac) }
+                roster.map {
+                    CollectionOrchestrator.ExpectedDevice(
+                        deviceId = it.deviceId,
+                        mac = it.mac,
+                        unitId = it.unitId
+                    )
+                }
             )
             // Keep the process alive via foreground service.
             val ctx = getApplication<Application>()

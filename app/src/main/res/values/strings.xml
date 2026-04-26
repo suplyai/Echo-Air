@@ -141,6 +141,28 @@
         <item quantity="other">%1$d of %2$d collected</item>
     </plurals>
     <string name="collection_close_partial">Close shipment without remaining devices</string>
+
+    <!-- ============ Multiple Package Shipment (MPS) ============ -->
+    <!-- Air-cargo industry term for a shipment that carries multiple
+         physically separate units (pallets, ULDs, lots) under a single
+         AWB. Acronym MPS is universally recognised; full form on first
+         reference, MPS on subsequent. Customer's stored unit label
+         (e.g. "ULD 1", "Pallet A", "Lote-247") always renders verbatim
+         and is never translated; only the system-generated copy below
+         is localised. See the v0.4.9 brief vocabulary section. -->
+    <string name="confirm_mps_badge">Multiple Package Shipment (MPS)</string>
+    <!-- Confirm sheet summary line, e.g. "4 units · 8 devices total".
+         %1$d = unit count, %2$d = total device count. -->
+    <string name="confirm_mps_summary">%1$d units · %2$d devices total</string>
+    <!-- Per-unit progress on the Collection screen unit headers.
+         %1$d = collected on this unit, %2$d = total on this unit. -->
+    <plurals name="collection_unit_progress">
+        <item quantity="one">%1$d of %2$d collected</item>
+        <item quantity="other">%1$d of %2$d collected</item>
+    </plurals>
+    <!-- Fallback label for the rare synthetic unit holding any device
+         whose unit_id arrived null. Renders in place of unit.label. -->
+    <string name="collection_unattributed_unit">Unattributed</string>
     <!-- Close-confirmation dialog -->
     <string name="collection_close_dialog_title_finish">Finish shipment?</string>
     <plurals name="collection_close_dialog_title_partial">

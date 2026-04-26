@@ -13,12 +13,14 @@ import app.suply.echoair.data.api.VisionRequest
 import app.suply.echoair.data.api.VisionResponse
 import app.suply.echoair.data.db.CachedDevice
 import app.suply.echoair.data.db.CachedShipment
+import app.suply.echoair.data.db.CachedUnit
 import app.suply.echoair.data.db.DeviceDao
 import app.suply.echoair.data.db.PendingUpload
 import app.suply.echoair.data.db.PendingUploadDao
 import app.suply.echoair.data.db.RecordDao
 import app.suply.echoair.data.db.ShipmentDao
 import app.suply.echoair.data.db.TemperatureRecord
+import app.suply.echoair.data.db.UnitDao
 import app.suply.echoair.work.UploadWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.Json
@@ -37,6 +39,7 @@ class ShipmentRepository @Inject constructor(
     private val api: SuplyApi,
     private val shipmentDao: ShipmentDao,
     private val deviceDao: DeviceDao,
+    private val unitDao: UnitDao,
     private val recordDao: RecordDao,
     private val uploadDao: PendingUploadDao,
     private val json: Json
@@ -174,6 +177,16 @@ class ShipmentRepository @Inject constructor(
     suspend fun devicesForShipment(shipmentId: String): List<CachedDevice> =
         deviceDao.forShipmentOnce(shipmentId)
 
+    /**
+     * Multi-unit / Multiple Package Shipment (MPS) breakdown for a given
+     * shipment. Returns the cached unit list ordered by sequence_index;
+     * empty list for legacy single-unit cached rows or for shipments with
+     * no MPS data on the wire. The Collection screen uses this to decide
+     * between grouped (units > 1) and flat (units ≤ 1) rendering.
+     */
+    suspend fun unitsForShipment(shipmentId: String): List<CachedUnit> =
+        unitDao.forShipmentOnce(shipmentId)
+
     private suspend fun cache(s: ShipmentDto) {
         shipmentDao.upsert(
             CachedShipment(
@@ -197,10 +210,30 @@ class ShipmentRepository @Inject constructor(
                     mac = it.mac?.uppercase()?.replace(":", ""),
                     shipmentId = s.id,
                     status = it.status,
-                    lastSeenAt = parseIsoEpochMillis(it.scannedAt)
+                    lastSeenAt = parseIsoEpochMillis(it.scannedAt),
+                    unitId = it.unitId
                 )
             }
         )
+        // Replace the unit roster wholesale — the consignee endpoint
+        // always returns the full list, so partial-update semantics
+        // would only invite drift between dashboard edits and the cache.
+        // No-op when units[] is empty (legacy / single-unit responses).
+        unitDao.deleteForShipment(s.id)
+        if (s.units.isNotEmpty()) {
+            unitDao.upsertAll(
+                s.units.map { u ->
+                    CachedUnit(
+                        id = u.id,
+                        shipmentId = s.id,
+                        label = u.label,
+                        position = u.position,
+                        sequenceIndex = u.sequenceIndex,
+                        commodityOverride = u.commodityOverride
+                    )
+                }
+            )
+        }
     }
 
     /**

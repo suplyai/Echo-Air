@@ -78,6 +78,7 @@ fun CollectionScreen(
 ) {
     val state by vm.state.collectAsState()
     val shipment by vm.shipment.collectAsState()
+    val units by vm.units.collectAsState()
     val context = LocalContext.current
 
     val blePerms = remember {
@@ -142,10 +143,32 @@ fun CollectionScreen(
                         it.state == DeviceState.ERROR ||
                         it.state == DeviceState.MISSING
                 }
+            // MPS focus hint: when every still-in-flight device belongs to
+            // the same unit, surface that unit's customer-supplied label
+            // in the bottom bar so the consignee knows which physical
+            // pallet to walk to next ("ULD 3 · 1 of 2 collected"). Single
+            // unit / no-units shipments and mixed-unit residuals leave
+            // this null and the bar reads exactly as v0.4.7.
+            val inFlightUnitFocus = remember(state.devices, units) {
+                if (units.size <= 1) return@remember null
+                val inFlight = state.devices.filter {
+                    it.state == DeviceState.SEARCHING ||
+                        it.state == DeviceState.IN_RANGE ||
+                        it.state == DeviceState.SYNCING
+                }
+                if (inFlight.isEmpty()) return@remember null
+                val ids = inFlight.mapNotNull { it.unitId }.toSet()
+                if (ids.size != 1) return@remember null
+                val onlyId = ids.single()
+                units.firstOrNull { it.id == onlyId }
+                    ?.label
+                    ?.takeIf { it.isNotBlank() }
+            }
             BottomBar(
                 collected = state.collectedCount,
                 total = state.totalCount,
                 allFinal = allFinal,
+                focusUnitLabel = inFlightUnitFocus,
                 onFinish = onClose,
                 onClosePartial = { confirmClose = true }
             )
@@ -167,13 +190,60 @@ fun CollectionScreen(
                 collected = state.collectedCount,
                 total = state.totalCount
             )
+            // Multiple Package Shipment grouping: when the shipment has
+            // more than one unit, device rows are bucketed under unit
+            // headers (label + per-unit progress). One header per unit,
+            // in the dashboard's sequence_index order. Single-unit and
+            // legacy / no-units shipments render the flat list exactly
+            // as in v0.4.8 and earlier — no header, no grouping.
+            val isMultiUnit = units.size > 1
+            val unattributedLabel = stringResource(R.string.collection_unattributed_unit)
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(state.devices, key = { it.deviceId }) { device ->
-                    DeviceRow(device, onRetry = { vm.retry(device.deviceId) })
+                if (isMultiUnit) {
+                    val byUnit = state.devices.groupBy { it.unitId }
+                    units.forEach { unit ->
+                        val rows = byUnit[unit.id].orEmpty()
+                        if (rows.isEmpty()) return@forEach
+                        item(key = "unit-${unit.id}") {
+                            UnitHeader(
+                                label = unit.label?.takeIf { it.isNotBlank() } ?: unattributedLabel,
+                                collected = rows.count { it.state == DeviceState.COLLECTED },
+                                total = rows.size
+                            )
+                        }
+                        items(rows, key = { it.deviceId }) { device ->
+                            DeviceRow(device, onRetry = { vm.retry(device.deviceId) })
+                        }
+                    }
+                    // Devices whose unit_id doesn't match any known unit
+                    // (orphans — a server-side drift case). Rendered under
+                    // a single localised "Unattributed" header so they're
+                    // still visible and finalisable rather than silently
+                    // dropped from the list.
+                    val knownIds = units.map { it.id }.toSet()
+                    val orphans = state.devices.filter {
+                        it.unitId == null || it.unitId !in knownIds
+                    }
+                    if (orphans.isNotEmpty()) {
+                        item(key = "unit-orphans") {
+                            UnitHeader(
+                                label = unattributedLabel,
+                                collected = orphans.count { it.state == DeviceState.COLLECTED },
+                                total = orphans.size
+                            )
+                        }
+                        items(orphans, key = { it.deviceId }) { device ->
+                            DeviceRow(device, onRetry = { vm.retry(device.deviceId) })
+                        }
+                    }
+                } else {
+                    items(state.devices, key = { it.deviceId }) { device ->
+                        DeviceRow(device, onRetry = { vm.retry(device.deviceId) })
+                    }
                 }
             }
         }
@@ -613,6 +683,40 @@ private fun RadarRing(color: Color, transition: InfiniteTransition, offsetMs: In
     )
 }
 
+/**
+ * Section header for one Multiple Package Shipment unit. Renders the
+ * customer-supplied label verbatim ("ULD 1", "Pallet A", "Lote-247") with
+ * a per-unit progress count to its right ("2 of 3 collected"). Only used
+ * when the shipment has more than one unit; single-unit shipments skip
+ * this entirely and render the device list flat.
+ */
+@Composable
+private fun UnitHeader(label: String, collected: Int, total: Int) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = pluralStringResource(
+                R.plurals.collection_unit_progress,
+                collected,
+                collected,
+                total
+            ),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 // Proximity-hint thresholds, in elapsed SEARCHING milliseconds.
 //
 // Level 0 is the always-on ambient prompt ("Hold your phone near the
@@ -802,6 +906,12 @@ private fun BottomBar(
     collected: Int,
     total: Int,
     allFinal: Boolean,
+    /** Customer-supplied label for the unit currently being scanned, or
+     *  null when the in-flight set spans multiple units / when the
+     *  shipment isn't an MPS. When non-null, prefixes the in-flight
+     *  status copy ("ULD 3 · 1 of 2 collected") so the consignee knows
+     *  which physical pallet to walk to. Ignored when allFinal is true. */
+    focusUnitLabel: String?,
     onFinish: () -> Unit,
     onClosePartial: () -> Unit
 ) {
@@ -860,18 +970,22 @@ private fun BottomBar(
                     .padding(horizontal = 20.dp, vertical = 14.dp),
                 contentAlignment = Alignment.Center
             ) {
+                val baseStatus = when {
+                    allFinal -> stringResource(R.string.collection_finish)
+                    total > 0 && collected > 0 -> pluralStringResource(
+                        R.plurals.collection_collecting_n_of_m,
+                        collected,
+                        collected,
+                        total
+                    )
+                    total > 0 -> stringResource(R.string.collection_collecting_label)
+                    else -> stringResource(R.string.collection_finding_devices)
+                }
+                val displayText =
+                    if (!allFinal && focusUnitLabel != null) "$focusUnitLabel  ·  $baseStatus"
+                    else baseStatus
                 Text(
-                    text = when {
-                        allFinal -> stringResource(R.string.collection_finish)
-                        total > 0 && collected > 0 -> pluralStringResource(
-                            R.plurals.collection_collecting_n_of_m,
-                            collected,
-                            collected,
-                            total
-                        )
-                        total > 0 -> stringResource(R.string.collection_collecting_label)
-                        else -> stringResource(R.string.collection_finding_devices)
-                    },
+                    text = displayText,
                     style = MaterialTheme.typography.titleMedium,
                     color = textColor,
                     fontWeight = if (allFinal) FontWeight.SemiBold else FontWeight.Medium

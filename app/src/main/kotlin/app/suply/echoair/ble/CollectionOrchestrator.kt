@@ -58,7 +58,13 @@ class CollectionOrchestrator @Inject constructor(
         // Used by the UI to drive time-staged proximity hints when BLE
         // takes too long — survives rotation because the orchestrator is
         // a @Singleton, which the composable's ephemeral timers would not.
-        val searchStartedAt: Long = 0L
+        val searchStartedAt: Long = 0L,
+        /** Multiple Package Shipment attribution. References the unit this
+         *  device belongs to; null on legacy / single-unit shipments and on
+         *  the synthetic "Unattributed" edge case. The Collection screen
+         *  uses this to group rows under unit headers when the shipment
+         *  has more than one unit. */
+        val unitId: String? = null
     ) {
         val collected: Boolean get() = state == DeviceState.COLLECTED
     }
@@ -93,7 +99,12 @@ class CollectionOrchestrator @Inject constructor(
         _state.value = State(
             shipmentId = shipmentId,
             devices = expected.map {
-                Device(deviceId = it.deviceId, mac = it.mac, searchStartedAt = searchStart)
+                Device(
+                    deviceId = it.deviceId,
+                    mac = it.mac,
+                    searchStartedAt = searchStart,
+                    unitId = it.unitId
+                )
             },
             running = true
         )
@@ -260,5 +271,5 @@ class CollectionOrchestrator @Inject constructor(
         }
     }
 
-    data class ExpectedDevice(val deviceId: String, val mac: String?)
+    data class ExpectedDevice(val deviceId: String, val mac: String?, val unitId: String? = null)
 }

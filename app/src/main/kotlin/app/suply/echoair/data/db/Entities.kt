@@ -25,14 +25,46 @@ data class CachedShipment(
 
 @Entity(
     tableName = "devices",
-    indices = [Index("shipmentId"), Index("mac", unique = true), Index(value = ["deviceId"], unique = true)]
+    indices = [
+        Index("shipmentId"),
+        Index("mac", unique = true),
+        Index(value = ["deviceId"], unique = true),
+        Index("unitId")
+    ]
 )
 data class CachedDevice(
     @PrimaryKey val deviceId: String,  // KKM serial, e.g. "633640"
     val mac: String?,                  // e.g. "BC57291CD6A6"
     val shipmentId: String?,
     val status: String,                // assigned | scanned | missing
-    val lastSeenAt: Long?
+    val lastSeenAt: Long?,
+    /** Multi-unit attribution. Null for legacy single-unit data, for the
+     *  synthetic "Unattributed" edge case, or for shipments cached before
+     *  v0.4.9. The Collection screen falls back to flat rendering when
+     *  this is null across the roster. */
+    val unitId: String? = null
+)
+
+/**
+ * One pallet / ULD / lot inside a Multiple Package Shipment (MPS). Cached
+ * mirror of [app.suply.echoair.data.api.UnitDto]. The dashboard side stays
+ * authoritative; this row exists so the Collection screen can render unit
+ * headers and per-unit progress without re-fetching the shipment on every
+ * recomposition.
+ */
+@Entity(
+    tableName = "units",
+    indices = [Index("shipmentId")]
+)
+data class CachedUnit(
+    @PrimaryKey val id: String,
+    val shipmentId: String,
+    /** Customer-supplied label. Rendered verbatim — see the v0.4.9 brief
+     *  vocabulary note: customer's label always wins over Suply's. */
+    val label: String?,
+    val position: String?,
+    val sequenceIndex: Int?,
+    val commodityOverride: String?
 )
 
 @Entity(
