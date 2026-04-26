@@ -6,12 +6,15 @@
 <resources>
     <string name="app_name">Echo Air</string>
 
-    <string name="home_title">Echo Air</string>
-    <string name="home_cta_scan_qr_title">扫描二维码</string>
-    <string name="home_cta_scan_qr_body">在 Echo Air 设备或货运标签上。</string>
-    <string name="home_cta_enter_awb">手动输入运单号</string>
-    <string name="home_settings_cd">设置</string>
-    <string name="home_language_cd">更改语言</string>
+    <string name="home_headline">在运输过程中的任何环节确认冷链完整性。</string>
+    <string name="home_value_proposition">输入您的航空运单号或扫描货物上任意二维码 — 我们将自动查找所有设备。</string>
+    <string name="home_action_awb_title">输入航空运单号</string>
+    <string name="home_action_awb_subtitle">在货物文件或标签上</string>
+    <string name="home_action_qr_title">扫描货物上的二维码</string>
+    <string name="home_action_qr_subtitle">在航空运单标签或任意设备上</string>
+    <string name="home_footer_no_account">无需账户。您的数据仅与本次货运的相关方共享。</string>
+    <string name="home_hero_image_description">一名仓库操作员手持手机站在航空货运集装箱前。</string>
+    <string name="home_language_selector_label">切换语言</string>
     <string name="home_debug_scan_document">[调试] 扫描文档 (OCR)</string>
 
     <string name="settings_title">设置</string>

@@ -10,12 +10,17 @@ import java.util.Locale
  * The four languages the app ships translations for. Supported language
  * tags mirror the values-* resource qualifiers. Order here controls the
  * order in the language picker.
+ *
+ * [displayCode] is what the home-screen language pill renders next to
+ * the globe icon — Latin abbreviation for the Latin-script locales,
+ * the language's own native character for the CJK pair so it reads
+ * natural to a speaker glancing at the chip.
  */
-enum class AppLocale(val tag: String, val nativeNameKey: String) {
-    ENGLISH("en", "language_name_en"),
-    SPANISH("es", "language_name_es"),
-    CHINESE("zh", "language_name_zh"),
-    JAPANESE("ja", "language_name_ja");
+enum class AppLocale(val tag: String, val nativeNameKey: String, val displayCode: String) {
+    ENGLISH("en", "language_name_en", "EN"),
+    SPANISH("es", "language_name_es", "ES"),
+    CHINESE("zh", "language_name_zh", "中"),
+    JAPANESE("ja", "language_name_ja", "日");
 
     companion object {
         val DEFAULT = ENGLISH

@@ -1,0 +1,79 @@
+<!--
+  PLACEHOLDER — replace with the master PNG illustration "Hero A":
+  warehouse operator standing in front of a single ULD, holding a phone.
+
+  When the final PNG masters land, drop the densified versions into
+    res/drawable-mdpi/home_hero_a.png
+    res/drawable-hdpi/home_hero_a.png
+    res/drawable-xhdpi/home_hero_a.png
+    res/drawable-xxhdpi/home_hero_a.png
+    res/drawable-xxxhdpi/home_hero_a.png
+  AAPT picks the density bucket matching the device; this vector remains
+  as the lowest-density fallback. After the PNGs are present this
+  placeholder can be deleted.
+
+  See HomeScreen.kt for the cross-fade + reduced-motion handling.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="200dp"
+    android:viewportWidth="320"
+    android:viewportHeight="200"
+    android:tint="?attr/colorOnSurface">
+
+    <!-- Person: head -->
+    <path
+        android:pathData="M55,55 m-13,0 a13,13 0 1,0 26,0 a13,13 0 1,0 -26,0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <!-- Person: hi-vis vest body -->
+    <path
+        android:pathData="M38,72 L38,140 L72,140 L72,72 Z M38,90 L72,90 M38,110 L72,110"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <!-- Person: arm holding phone -->
+    <path
+        android:pathData="M72,92 L92,82"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <!-- Phone -->
+    <path
+        android:pathData="M92,72 L108,72 L108,94 L92,94 Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <!-- Ground line -->
+    <path
+        android:pathData="M30,170 L120,170"
+        android:strokeColor="#000000"
+        android:strokeWidth="1"
+        android:fillColor="#00000000" />
+
+    <!-- Single ULD: outline -->
+    <path
+        android:pathData="M170,70 L260,70 L280,90 L280,160 L170,160 Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <!-- ULD: pallet base -->
+    <path
+        android:pathData="M165,160 L285,160 L285,170 L165,170 Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <!-- ULD: net pattern (sparse) -->
+    <path
+        android:pathData="M180,80 L270,150 M210,80 L270,120 M250,80 L270,95 M270,80 L180,150 M250,80 L180,140 M210,80 L180,105"
+        android:strokeColor="#000000"
+        android:strokeWidth="1"
+        android:fillColor="#00000000" />
+    <!-- ULD: label hint -->
+    <path
+        android:pathData="M260,95 L275,95 M260,105 L275,105 M260,115 L275,115"
+        android:strokeColor="#000000"
+        android:strokeWidth="1"
+        android:fillColor="#00000000" />
+</vector>

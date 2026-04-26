@@ -96,7 +96,6 @@ private fun EchoAirNavHost() {
             HomeScreen(
                 onScanQr = { nav.navigate(Routes.capture(CaptureMode.QR)) },
                 onEnterAwb = { nav.navigate(Routes.AWB_ENTRY) },
-                onOpenSettings = { nav.navigate(Routes.SETTINGS) },
                 onScanDocumentDebug = { nav.navigate(Routes.capture(CaptureMode.DOCUMENT)) }
             )
         }

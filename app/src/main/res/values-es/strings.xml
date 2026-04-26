@@ -8,12 +8,15 @@
 <resources>
     <string name="app_name">Echo Air</string>
 
-    <string name="home_title">Echo Air</string>
-    <string name="home_cta_scan_qr_title">Escanear código QR</string>
-    <string name="home_cta_scan_qr_body">En el dispositivo Echo Air o en la etiqueta del envío.</string>
-    <string name="home_cta_enter_awb">Ingresar AWB manualmente</string>
-    <string name="home_settings_cd">Ajustes</string>
-    <string name="home_language_cd">Cambiar idioma</string>
+    <string name="home_headline">Confirme la integridad de la cadena de frío, en cualquier punto del trayecto.</string>
+    <string name="home_value_proposition">Ingrese su guía aérea o escanee cualquier código QR del envío — encontraremos todos los dispositivos automáticamente.</string>
+    <string name="home_action_awb_title">Ingrese el número de su guía aérea</string>
+    <string name="home_action_awb_subtitle">En la documentación o etiqueta del envío</string>
+    <string name="home_action_qr_title">Escanee un código QR del envío</string>
+    <string name="home_action_qr_subtitle">En la etiqueta de la guía aérea o en cualquier dispositivo</string>
+    <string name="home_footer_no_account">No se necesita cuenta. Sus datos solo se comparten con las partes de este envío.</string>
+    <string name="home_hero_image_description">Un operador de almacén frente a contenedores de carga aérea, con un teléfono en la mano.</string>
+    <string name="home_language_selector_label">Cambiar idioma</string>
     <string name="home_debug_scan_document">[debug] Escanear documento (OCR)</string>
 
     <string name="settings_title">Ajustes</string>

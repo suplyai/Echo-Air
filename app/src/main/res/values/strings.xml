@@ -17,13 +17,34 @@
 
     <string name="app_name">Echo Air</string>
 
-    <!-- ============ Home ============ -->
-    <string name="home_title">Echo Air</string>
-    <string name="home_cta_scan_qr_title">Scan QR code</string>
-    <string name="home_cta_scan_qr_body">On the Echo Air device, or on the shipment label.</string>
-    <string name="home_cta_enter_awb">Enter AWB manually</string>
-    <string name="home_settings_cd">Settings</string>
-    <string name="home_language_cd">Change language</string>
+    <!-- ============ Home (guided landing page) ============ -->
+    <!-- Headline: establishes that Echo Air works at any moment on the
+         supply chain — origin, hub, in-transit handoff, arrival, audit.
+         Not just an arrival-scan app. -->
+    <string name="home_headline">Confirm cold chain integrity, anywhere on the journey.</string>
+    <!-- The magic line. Highest-leverage 14 words in the whole app —
+         compresses Echo Air's central differentiator (one AWB → all
+         devices found automatically). Translate carefully. -->
+    <string name="home_value_proposition">Enter your air waybill or scan any QR code on the shipment — we\'ll find every device automatically.</string>
+    <!-- Primary action card. AWB entry is the primary path because most
+         users have the AWB number from shipping documents before they
+         reach the cargo. -->
+    <string name="home_action_awb_title">Enter your air waybill number</string>
+    <string name="home_action_awb_subtitle">On the cargo paperwork or label</string>
+    <!-- Secondary action card. QR is faster if a QR is visible but
+         doesn\'t require finding one — both paths reach the same
+         destination. -->
+    <string name="home_action_qr_title">Scan a QR code on the shipment</string>
+    <string name="home_action_qr_subtitle">On the AWB label or any device</string>
+    <!-- Reassurance footer addressing first-launch friction
+         ("do I need to register? do I need an account?"). -->
+    <string name="home_footer_no_account">No account needed. Your data is only shared with parties on this shipment.</string>
+    <!-- Accessibility content description for the alternating hero
+         illustration (single ULD ↔ multiple ULDs). Spoken by TalkBack;
+         localised so it reads in the user\'s language. -->
+    <string name="home_hero_image_description">A warehouse operator standing in front of air cargo containers, holding a phone.</string>
+    <!-- Accessibility label for the language pill chip in the top-right. -->
+    <string name="home_language_selector_label">Change language</string>
     <string name="home_debug_scan_document">[debug] Scan document (OCR)</string>
 
     <!-- ============ Settings ============ -->

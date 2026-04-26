@@ -1,0 +1,89 @@
+<!--
+  PLACEHOLDER — replace with the master PNG illustration "Hero B":
+  same warehouse operator, now standing in front of multiple ULDs
+  ("the camera has zoomed out") so the cross-fade reads as scale,
+  not as two unrelated images.
+
+  Drop densified versions into:
+    res/drawable-mdpi/home_hero_b.png
+    res/drawable-hdpi/home_hero_b.png
+    res/drawable-xhdpi/home_hero_b.png
+    res/drawable-xxhdpi/home_hero_b.png
+    res/drawable-xxxhdpi/home_hero_b.png
+
+  This vector remains as the lowest-density fallback. After the PNGs
+  are present this placeholder can be deleted.
+
+  Reduced-motion mode shows ONLY this image (the more inclusive
+  multi-ULD scene). See HomeScreen.kt.
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="320dp"
+    android:height="200dp"
+    android:viewportWidth="320"
+    android:viewportHeight="200"
+    android:tint="?attr/colorOnSurface">
+
+    <!-- Person (smaller / further back, framing matches Hero A scale) -->
+    <path
+        android:pathData="M40,60 m-10,0 a10,10 0 1,0 20,0 a10,10 0 1,0 -20,0"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M28,73 L28,135 L52,135 L52,73 Z M28,88 L52,88 M28,108 L52,108"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M52,90 L66,82"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M66,73 L78,73 L78,90 L66,90 Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M20,170 L300,170"
+        android:strokeColor="#000000"
+        android:strokeWidth="1"
+        android:fillColor="#00000000" />
+
+    <!-- ULD 1 -->
+    <path
+        android:pathData="M100,80 L160,80 L172,92 L172,158 L100,158 Z M97,158 L175,158 L175,166 L97,166 Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M108,90 L165,150 M125,90 L165,125 M155,90 L108,140"
+        android:strokeColor="#000000"
+        android:strokeWidth="1"
+        android:fillColor="#00000000" />
+
+    <!-- ULD 2 -->
+    <path
+        android:pathData="M180,80 L240,80 L252,92 L252,158 L180,158 Z M177,158 L255,158 L255,166 L177,166 Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M188,90 L245,150 M205,90 L245,125 M235,90 L188,140"
+        android:strokeColor="#000000"
+        android:strokeWidth="1"
+        android:fillColor="#00000000" />
+
+    <!-- ULD 3 -->
+    <path
+        android:pathData="M260,80 L300,80 L308,88 L308,158 L260,158 Z M257,158 L311,158 L311,166 L257,166 Z"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M268,90 L302,150 M285,90 L302,120 M298,90 L268,135"
+        android:strokeColor="#000000"
+        android:strokeWidth="1"
+        android:fillColor="#00000000" />
+</vector>

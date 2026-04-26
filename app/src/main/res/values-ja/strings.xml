@@ -6,12 +6,15 @@
 <resources>
     <string name="app_name">Echo Air</string>
 
-    <string name="home_title">Echo Air</string>
-    <string name="home_cta_scan_qr_title">QR コードをスキャン</string>
-    <string name="home_cta_scan_qr_body">Echo Air デバイスまたは貨物ラベル上。</string>
-    <string name="home_cta_enter_awb">AWB を手動で入力</string>
-    <string name="home_settings_cd">設定</string>
-    <string name="home_language_cd">言語を変更</string>
+    <string name="home_headline">輸送中のあらゆる地点でコールドチェーンの完全性を確認。</string>
+    <string name="home_value_proposition">航空運送状を入力するか、貨物の任意のQRコードをスキャンしてください — すべてのデバイスを自動的に検出します。</string>
+    <string name="home_action_awb_title">航空運送状番号を入力</string>
+    <string name="home_action_awb_subtitle">貨物書類またはラベルに記載</string>
+    <string name="home_action_qr_title">貨物のQRコードをスキャン</string>
+    <string name="home_action_qr_subtitle">航空運送状ラベルまたは任意のデバイスに貼付</string>
+    <string name="home_footer_no_account">アカウント不要。データはこの貨物の関係者とのみ共有されます。</string>
+    <string name="home_hero_image_description">倉庫作業員が航空貨物コンテナの前でスマートフォンを持って立っています。</string>
+    <string name="home_language_selector_label">言語を変更</string>
     <string name="home_debug_scan_document">[debug] ドキュメントをスキャン (OCR)</string>
 
     <string name="settings_title">設定</string>
