@@ -184,7 +184,7 @@ fun HomeScreen(
 private fun AlternatingHero(reducedMotion: Boolean, contentDescription: String) {
     val heroModifier = Modifier
         .fillMaxWidth()
-        .aspectRatio(8f / 5f)
+        .aspectRatio(3f / 2f)
         .padding(top = 4.dp)
 
     if (reducedMotion) {
