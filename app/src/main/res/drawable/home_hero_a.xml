@@ -1,15 +1,17 @@
 <!--
   Generated from uld1.svg by tools/svg_to_vector.py.
   Source SVG: 600x400 viewBox, single <g transform="translate(0,400) scale(0.1,-0.1)">.
-  Tint at draw time picks up ?attr/colorOnSurface so line art reads
-  correctly on both light and dark themes.
+  No XML tint here — the app theme is android:Theme.Material.Light, which
+  doesn't define ?attr/colorOnSurface (that's a Material3 attribute, and
+  Material3 in this app lives only inside Compose's MaterialTheme).
+  Tinting is applied at draw time by HomeScreen via Image(colorFilter=...)
+  using MaterialTheme.colorScheme.onSurface, which adapts to light/dark.
 -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="300dp"
     android:height="200dp"
     android:viewportWidth="600"
-    android:viewportHeight="400"
-    android:tint="?attr/colorOnSurface">
+    android:viewportHeight="400">
     <group
         android:translateX="0"
         android:translateY="400"
