@@ -71,6 +71,15 @@ fun ManualAwbScreen(
     }
     val validAwb = canonical?.takeIf(Awb::isValid)
     val checkDigitMismatch = serial.length == 8 && canonical != null && validAwb == null
+    // Serial passes the IATA mod-7 check independently of the prefix —
+    // the check digit is computed only over the first 7 digits of the
+    // serial, so a structurally-valid 8-digit body is a meaningful
+    // affirmation even when the airline prefix is unknown to our local
+    // IATA list. Drives the body field's green ✓ confirmation.
+    val serialValid = remember(serial) {
+        serial.length == 8 &&
+            Awb.expectedCheckDigit(serial) == serial.last().digitToInt()
+    }
 
     // Airline lookup: resolves as soon as the 3rd prefix digit lands.
     val carrierName = remember(prefix) {
@@ -170,6 +179,16 @@ fun ManualAwbScreen(
                     onImeAction = {
                         validAwb?.let { submit(it, vm, appContext) }
                     },
+                    accentColour = if (serialValid) SUCCESS_GREEN else null,
+                    trailingIcon = if (serialValid) {
+                        {
+                            Icon(
+                                Icons.Filled.Check,
+                                contentDescription = null,
+                                tint = SUCCESS_GREEN
+                            )
+                        }
+                    } else null,
                     modifier = Modifier
                         .weight(0.65f)
                         .focusRequester(serialFocus)
@@ -234,11 +253,36 @@ fun ManualAwbScreen(
                     .fillMaxWidth()
                     .height(56.dp)
             ) {
-                if (state.loading) CircularProgressIndicator(
-                    modifier = Modifier.size(22.dp),
-                    strokeWidth = 2.dp,
-                    color = MaterialTheme.colorScheme.onPrimary
-                ) else Text(stringResource(R.string.awb_continue), style = MaterialTheme.typography.titleMedium)
+                // Loading state surfaces both spinner AND "Looking up
+                // shipment…" copy, not just a bare spinner — the zero-
+                // latency feedback on tap is the whole point of the
+                // affordance, and a spinner alone reads as ambient
+                // motion rather than "your tap is being processed".
+                // state.loading flips synchronously inside
+                // CaptureViewModel.identifyByAwb before the network
+                // call begins, so this lights up on the same frame
+                // the user releases their finger.
+                if (state.loading) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary
+                        )
+                        Text(
+                            stringResource(R.string.awb_continue_loading),
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                    }
+                } else {
+                    Text(
+                        stringResource(R.string.awb_continue),
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                }
             }
         }
 
@@ -283,7 +327,12 @@ private fun DigitField(
     imeAction: ImeAction,
     modifier: Modifier = Modifier,
     onImeAction: (() -> Unit)? = null,
-    accentColour: Color? = null
+    accentColour: Color? = null,
+    /** Optional trailing slot inside the OutlinedTextField — used by the
+     *  body field to surface a green ✓ when 8 valid digits are entered.
+     *  Null on the prefix field, which already has its own confirmation
+     *  affordance (the carrier-name row beneath the inputs). */
+    trailingIcon: (@Composable () -> Unit)? = null
 ) {
     val defaultOutline = MaterialTheme.colorScheme.outline
     val defaultFocused = MaterialTheme.colorScheme.primary
@@ -321,6 +370,7 @@ private fun DigitField(
             focusedBorderColor = focused,
             unfocusedBorderColor = unfocused
         ),
+        trailingIcon = trailingIcon,
         placeholder = {
             Text(
                 "0".repeat(length),

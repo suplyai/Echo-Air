@@ -80,6 +80,10 @@
     <string name="awb_check_digit_mismatch">Check digit doesn\'t match — double-check the last digit.</string>
     <string name="awb_check_digit_mismatch_expected">Check digit doesn\'t match — double-check the last digit (expected %1$d).</string>
     <string name="awb_continue">Continue</string>
+    <!-- Submit button copy while the shipment lookup is in flight.
+         Paired with a spinner; appears synchronously on tap so the
+         user gets zero-latency feedback that the action registered. -->
+    <string name="awb_continue_loading">Looking up shipment…</string>
 
     <!-- ============ Confirm Shipment sheet ============ -->
     <string name="confirm_heading_low_confidence">Double-check this is your shipment</string>

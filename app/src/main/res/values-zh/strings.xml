@@ -44,6 +44,7 @@
     <string name="awb_check_digit_mismatch">校验位不匹配 — 请核对最后一位。</string>
     <string name="awb_check_digit_mismatch_expected">校验位不匹配 — 请核对最后一位 (应为 %1$d)。</string>
     <string name="awb_continue">继续</string>
+    <string name="awb_continue_loading">正在查找货运…</string>
 
     <string name="confirm_heading_low_confidence">请确认这是您的货运</string>
     <string name="confirm_fallback_commodity">货运</string>

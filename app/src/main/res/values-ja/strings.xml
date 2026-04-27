@@ -44,6 +44,7 @@
     <string name="awb_check_digit_mismatch">チェックディジットが一致しません — 最後の桁を確認してください。</string>
     <string name="awb_check_digit_mismatch_expected">チェックディジットが一致しません — 最後の桁を確認してください (正しい値: %1$d)。</string>
     <string name="awb_continue">続行</string>
+    <string name="awb_continue_loading">貨物を検索中…</string>
 
     <string name="confirm_heading_low_confidence">この貨物で間違いないかご確認ください</string>
     <string name="confirm_fallback_commodity">貨物</string>

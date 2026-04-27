@@ -46,6 +46,7 @@
     <string name="awb_check_digit_mismatch">El dígito de control no coincide — revisa el último dígito.</string>
     <string name="awb_check_digit_mismatch_expected">El dígito de control no coincide — revisa el último dígito (se esperaba %1$d).</string>
     <string name="awb_continue">Continuar</string>
+    <string name="awb_continue_loading">Buscando envío…</string>
 
     <string name="confirm_heading_low_confidence">Verifica que este sea tu envío</string>
     <string name="confirm_fallback_commodity">Envío</string>
