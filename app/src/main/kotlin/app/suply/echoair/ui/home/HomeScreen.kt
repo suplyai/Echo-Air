@@ -22,7 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -185,23 +184,14 @@ fun HomeScreen(
 private fun AlternatingHero(reducedMotion: Boolean, contentDescription: String) {
     val heroModifier = Modifier
         .fillMaxWidth()
-        .aspectRatio(3f / 2f)
+        .aspectRatio(8f / 5f)
         .padding(top = 4.dp)
-
-    // Tint the black-fill line art at draw time using the Compose
-    // colour scheme. We can't put this on the <vector> via
-    // ?attr/colorOnSurface because the app theme parent is
-    // android:Theme.Material.Light (Material2-era), which doesn't
-    // define that attribute — Material3 in this app lives only inside
-    // Compose. Tinting here adapts to light/dark theme reliably.
-    val heroTint = ColorFilter.tint(MaterialTheme.colorScheme.onSurface)
 
     if (reducedMotion) {
         Image(
             painter = painterResource(R.drawable.home_hero_b),
             contentDescription = contentDescription,
             contentScale = ContentScale.Fit,
-            colorFilter = heroTint,
             modifier = heroModifier
         )
         return
@@ -227,7 +217,6 @@ private fun AlternatingHero(reducedMotion: Boolean, contentDescription: String) 
             ),
             contentDescription = contentDescription,
             contentScale = ContentScale.Fit,
-            colorFilter = heroTint,
             modifier = heroModifier
         )
     }
