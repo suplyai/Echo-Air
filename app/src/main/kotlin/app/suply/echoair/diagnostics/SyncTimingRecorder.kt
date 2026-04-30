@@ -83,7 +83,8 @@ class SyncTimingRecorder @Inject constructor() {
         outcome: String,
         errorClass: String? = null,
         httpCode: Int? = null,
-        errorMessage: String? = null
+        errorMessage: String? = null,
+        errorBody: String? = null
     ) {
         pending[deviceId]?.let {
             it.uploadMs = elapsedMs
@@ -91,6 +92,7 @@ class SyncTimingRecorder @Inject constructor() {
             it.uploadErrorClass = errorClass
             it.uploadHttpCode = httpCode
             it.uploadErrorMessage = errorMessage
+            it.uploadErrorBody = errorBody
         }
     }
 
@@ -114,6 +116,7 @@ class SyncTimingRecorder @Inject constructor() {
             uploadErrorClass = b.uploadErrorClass,
             uploadHttpCode = b.uploadHttpCode,
             uploadErrorMessage = b.uploadErrorMessage,
+            uploadErrorBody = b.uploadErrorBody,
             totalMs = totalMs
         )
         _records.update { it + (deviceId to timing) }
@@ -136,7 +139,8 @@ class SyncTimingRecorder @Inject constructor() {
         var uploadOutcome: String? = null,
         var uploadErrorClass: String? = null,
         var uploadHttpCode: Int? = null,
-        var uploadErrorMessage: String? = null
+        var uploadErrorMessage: String? = null,
+        var uploadErrorBody: String? = null
     )
 }
 
@@ -171,6 +175,11 @@ data class DeviceSyncTiming(
     val uploadHttpCode: Int? = null,
     /** Throwable.message — short, often the most diagnostic line. */
     val uploadErrorMessage: String? = null,
+    /** Server-returned response body (capped at 2 KB by the catch). For
+     *  HttpException only — surface a structured error payload (validation
+     *  detail, trace ID, etc.) so the field engineer doesn't have to wait
+     *  on backend logs to identify the failure mode. */
+    val uploadErrorBody: String? = null,
     val totalMs: Long
 ) {
     /** Aggregate records-per-second across the batched read phase. */
@@ -203,6 +212,9 @@ data class DeviceSyncTiming(
             val codeStr = uploadHttpCode?.let { " http=$it" } ?: ""
             val msgStr = uploadErrorMessage?.let { "  msg=\"$it\"" } ?: ""
             appendLine("    error_class=$uploadErrorClass$codeStr$msgStr")
+            uploadErrorBody?.takeIf { it.isNotBlank() }?.let { body ->
+                appendLine("    body=$body")
+            }
         }
         appendLine()
         appendLine("Notes:")

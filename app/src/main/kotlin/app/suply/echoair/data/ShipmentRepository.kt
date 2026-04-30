@@ -192,20 +192,36 @@ class ShipmentRepository @Inject constructor(
             // crash, 4xx = client problem). SocketTimeoutException /
             // UnknownHostException / IOException are network-level.
             val errorClass = t::class.simpleName
-            val httpCode = (t as? retrofit2.HttpException)?.code()
+            val httpEx = t as? retrofit2.HttpException
+            val httpCode = httpEx?.code()
             val errorMessage = t.message?.take(120)
+            // Read the server's actual error payload so the diagnostic
+            // surface carries the real response, not just Retrofit's
+            // synthesised "HTTP 500 " summary. Capped at 2 KB so a stack-
+            // trace HTML page can't dominate the dialog or memory.
+            // errorBody().string() consumes the body and can throw
+            // IOException; runCatching swallows it quietly — losing the
+            // body is strictly better than a secondary crash inside a
+            // catch handler. Only meaningful on HttpException; other
+            // failure modes (timeout, no host, IO) don't carry a body.
+            val errorBody = httpEx?.response()?.errorBody()?.let { eb ->
+                runCatching { eb.string().take(2048) }.getOrNull()
+            }
             Timber.w(t, "echoScan failed; queuing for retry")
             Timber.i(
                 "sync.timing.upload device=%s elapsed_ms=%d outcome=queued " +
-                    "error_class=%s http=%s msg=\"%s\"",
+                    "error_class=%s http=%s msg=\"%s\" body=\"%s\"",
                 deviceId, uploadElapsed,
-                errorClass, httpCode?.toString() ?: "—", errorMessage ?: "—"
+                errorClass, httpCode?.toString() ?: "—",
+                errorMessage ?: "—",
+                errorBody?.replace("\n", "\\n")?.take(512) ?: "—"
             )
             timingRecorder.upload(
                 deviceId, uploadElapsed, "queued",
                 errorClass = errorClass,
                 httpCode = httpCode,
-                errorMessage = errorMessage
+                errorMessage = errorMessage,
+                errorBody = errorBody
             )
             uploadDao.enqueue(
                 PendingUpload(

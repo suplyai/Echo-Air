@@ -87,6 +87,21 @@ fun SyncTimingDialog(
                         timing.uploadErrorMessage?.let { rows += "  msg      $it" }
                     }
                     Mono(rows)
+                    // Server-returned response body, when the failure was a
+                    // Retrofit HttpException. Rendered as its own block so a
+                    // multi-line / JSON payload wraps cleanly without
+                    // breaking the aligned layout of the rows above.
+                    timing.uploadErrorBody?.takeIf { it.isNotBlank() }?.let { body ->
+                        Mono(listOf("  body"))
+                        Text(
+                            text = body,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                fontFamily = FontFamily.Monospace
+                            ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 16.dp, top = 2.dp)
+                        )
+                    }
                 }
                 item {
                     Section("Notes", "")
