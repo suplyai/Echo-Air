@@ -185,12 +185,28 @@ class ShipmentRepository @Inject constructor(
             resp
         } catch (t: Throwable) {
             val uploadElapsed = SystemClock.elapsedRealtime() - uploadStart
+            // Surface the failure mode so the diagnostic dialog can show
+            // *why* the upload failed, not just "queued". HttpException
+            // means the server acknowledged the request but returned an
+            // error code (504/502 = gateway timeout, 5xx = backend
+            // crash, 4xx = client problem). SocketTimeoutException /
+            // UnknownHostException / IOException are network-level.
+            val errorClass = t::class.simpleName
+            val httpCode = (t as? retrofit2.HttpException)?.code()
+            val errorMessage = t.message?.take(120)
             Timber.w(t, "echoScan failed; queuing for retry")
             Timber.i(
-                "sync.timing.upload device=%s elapsed_ms=%d outcome=queued",
-                deviceId, uploadElapsed
+                "sync.timing.upload device=%s elapsed_ms=%d outcome=queued " +
+                    "error_class=%s http=%s msg=\"%s\"",
+                deviceId, uploadElapsed,
+                errorClass, httpCode?.toString() ?: "—", errorMessage ?: "—"
             )
-            timingRecorder.upload(deviceId, uploadElapsed, "queued")
+            timingRecorder.upload(
+                deviceId, uploadElapsed, "queued",
+                errorClass = errorClass,
+                httpCode = httpCode,
+                errorMessage = errorMessage
+            )
             uploadDao.enqueue(
                 PendingUpload(
                     deviceId = deviceId,

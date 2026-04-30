@@ -198,8 +198,21 @@ class CollectionOrchestrator @Inject constructor(
                 // Play Services absent), await() returns null and we
                 // POST without it. See [LocationCapture] for the
                 // privacy model.
-                val locationStart = SystemClock.elapsedRealtime()
-                val locationDeferred = scope.async { locationCapture.captureOnce() }
+                //
+                // Timing is captured INSIDE the async block — measuring
+                // the actual captureOnce() runtime, not the wall clock
+                // from launch-of-async to await(). v0.5.4 measured the
+                // latter, which is why both Apr-2026 pilot devices
+                // reported location_ms ≡ ble_ms to within rounding —
+                // the location coroutine completes long before BLE
+                // does, but await() doesn't return until BLE is done,
+                // so the outer measurement was pure BLE-wait time.
+                val locationDeferred = scope.async {
+                    val locStart = SystemClock.elapsedRealtime()
+                    val dto = locationCapture.captureOnce()
+                    val elapsed = SystemClock.elapsedRealtime() - locStart
+                    dto to elapsed
+                }
 
                 val bleStart = SystemClock.elapsedRealtime()
                 val result = connection.downloadLog(
@@ -216,8 +229,7 @@ class CollectionOrchestrator @Inject constructor(
                     deviceId, bleElapsed, readings.size
                 )
 
-                val location = locationDeferred.await()
-                val locationElapsed = SystemClock.elapsedRealtime() - locationStart
+                val (location, locationElapsed) = locationDeferred.await()
                 Timber.i(
                     "sync.timing.location device=%s elapsed_ms=%d attached=%b",
                     deviceId, locationElapsed, location != null

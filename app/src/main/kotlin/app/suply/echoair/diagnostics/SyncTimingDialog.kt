@@ -77,12 +77,16 @@ fun SyncTimingDialog(
                 }
                 item {
                     Section("Submit", "")
-                    Mono(
-                        listOf(
-                            "persist    ${timing.persistMs ?: "—"} ms",
-                            "upload     ${timing.uploadMs ?: "—"} ms   outcome=${timing.uploadOutcome ?: "—"}"
-                        )
+                    val rows = mutableListOf(
+                        "persist    ${timing.persistMs ?: "—"} ms",
+                        "upload     ${timing.uploadMs ?: "—"} ms   outcome=${timing.uploadOutcome ?: "—"}"
                     )
+                    if (timing.uploadErrorClass != null) {
+                        val codeStr = timing.uploadHttpCode?.let { " http=$it" } ?: ""
+                        rows += "  error    ${timing.uploadErrorClass}$codeStr"
+                        timing.uploadErrorMessage?.let { rows += "  msg      $it" }
+                    }
+                    Mono(rows)
                 }
                 item {
                     Section("Notes", "")

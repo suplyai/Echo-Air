@@ -77,10 +77,20 @@ class SyncTimingRecorder @Inject constructor() {
         pending[deviceId]?.persistMs = elapsedMs
     }
 
-    fun upload(deviceId: String, elapsedMs: Long, outcome: String) {
+    fun upload(
+        deviceId: String,
+        elapsedMs: Long,
+        outcome: String,
+        errorClass: String? = null,
+        httpCode: Int? = null,
+        errorMessage: String? = null
+    ) {
         pending[deviceId]?.let {
             it.uploadMs = elapsedMs
             it.uploadOutcome = outcome
+            it.uploadErrorClass = errorClass
+            it.uploadHttpCode = httpCode
+            it.uploadErrorMessage = errorMessage
         }
     }
 
@@ -101,6 +111,9 @@ class SyncTimingRecorder @Inject constructor() {
             persistMs = b.persistMs,
             uploadMs = b.uploadMs,
             uploadOutcome = b.uploadOutcome,
+            uploadErrorClass = b.uploadErrorClass,
+            uploadHttpCode = b.uploadHttpCode,
+            uploadErrorMessage = b.uploadErrorMessage,
             totalMs = totalMs
         )
         _records.update { it + (deviceId to timing) }
@@ -120,7 +133,10 @@ class SyncTimingRecorder @Inject constructor() {
         var locationAttached: Boolean = false,
         var persistMs: Long? = null,
         var uploadMs: Long? = null,
-        var uploadOutcome: String? = null
+        var uploadOutcome: String? = null,
+        var uploadErrorClass: String? = null,
+        var uploadHttpCode: Int? = null,
+        var uploadErrorMessage: String? = null
     )
 }
 
@@ -144,6 +160,17 @@ data class DeviceSyncTiming(
     val persistMs: Long?,
     val uploadMs: Long?,
     val uploadOutcome: String?,
+    /** Throwable simple class name when [uploadOutcome] is "queued", e.g.
+     *  "SocketTimeoutException", "HttpException", "UnknownHostException".
+     *  Identifies network-level vs server-acknowledged failures at a glance. */
+    val uploadErrorClass: String? = null,
+    /** HTTP status when the failure was a Retrofit HttpException — 504/502
+     *  signals a gateway / load-balancer timeout (server acknowledged the
+     *  request but couldn't respond in time); 5xx signals server crash;
+     *  4xx signals a client-side problem. Null for non-HTTP failures. */
+    val uploadHttpCode: Int? = null,
+    /** Throwable.message — short, often the most diagnostic line. */
+    val uploadErrorMessage: String? = null,
     val totalMs: Long
 ) {
     /** Aggregate records-per-second across the batched read phase. */
@@ -172,6 +199,11 @@ data class DeviceSyncTiming(
         appendLine("Submit")
         appendLine("  persist      ${persistMs ?: "—"}ms")
         appendLine("  upload       ${uploadMs ?: "—"}ms  outcome=${uploadOutcome ?: "—"}")
+        if (uploadErrorClass != null) {
+            val codeStr = uploadHttpCode?.let { " http=$it" } ?: ""
+            val msgStr = uploadErrorMessage?.let { "  msg=\"$it\"" } ?: ""
+            appendLine("    error_class=$uploadErrorClass$codeStr$msgStr")
+        }
         appendLine()
         appendLine("Notes:")
         appendLine("  • kbeaconlib2 MTU target = 251 (BLE 5.x max = 517)")
