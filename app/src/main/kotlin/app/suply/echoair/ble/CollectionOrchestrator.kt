@@ -1,5 +1,6 @@
 package app.suply.echoair.ble
 
+import android.os.SystemClock
 import app.suply.echoair.data.ShipmentRepository
 import app.suply.echoair.location.LocationCapture
 import kotlinx.coroutines.CoroutineScope
@@ -178,6 +179,14 @@ class CollectionOrchestrator @Inject constructor(
             }
             try {
                 updateDevice(deviceId) { it.copy(state = DeviceState.SYNCING, progress = 0f) }
+                // === Timing instrumentation (v0.5.4) ===
+                // Tag prefix "sync.timing.*" pairs with BleConnectionManager's
+                // "ble.timing.*" so a single grep can pull the full per-device
+                // breakdown from logcat. SystemClock.elapsedRealtime() is
+                // monotonic; safe across NTP / user clock changes mid-sync.
+                val syncStart = SystemClock.elapsedRealtime()
+                Timber.i("sync.timing.start device=%s", deviceId)
+
                 // Kick off location capture in parallel with the GATT
                 // read. FusedLocation usually resolves in < 1s when a
                 // recent fix exists, and the GATT log download takes
@@ -187,18 +196,47 @@ class CollectionOrchestrator @Inject constructor(
                 // Play Services absent), await() returns null and we
                 // POST without it. See [LocationCapture] for the
                 // privacy model.
+                val locationStart = SystemClock.elapsedRealtime()
                 val locationDeferred = scope.async { locationCapture.captureOnce() }
+
+                val bleStart = SystemClock.elapsedRealtime()
                 val result = connection.downloadLog(beacon.mac) { progress ->
                     val frac = if (progress.total == 0) 0f else progress.current / progress.total.toFloat()
                     updateDevice(deviceId) { it.copy(progress = frac) }
                 }
+                val bleElapsed = SystemClock.elapsedRealtime() - bleStart
                 val readings = result.records
+                Timber.i(
+                    "sync.timing.ble device=%s elapsed_ms=%d records=%d",
+                    deviceId, bleElapsed, readings.size
+                )
+
                 val location = locationDeferred.await()
+                val locationElapsed = SystemClock.elapsedRealtime() - locationStart
+                Timber.i(
+                    "sync.timing.location device=%s elapsed_ms=%d attached=%b",
+                    deviceId, locationElapsed, location != null
+                )
+
+                val submitStart = SystemClock.elapsedRealtime()
                 val resp = repo.submitRecords(
                     deviceId = deviceId,
                     records = readings,
                     deviceClockOffsetSeconds = result.deviceClockOffsetSeconds,
                     location = location
+                )
+                val submitElapsed = SystemClock.elapsedRealtime() - submitStart
+                Timber.i(
+                    "sync.timing.submit device=%s elapsed_ms=%d outcome=%s",
+                    deviceId, submitElapsed, if (resp != null) "ok" else "queued_or_failed"
+                )
+
+                val totalElapsed = SystemClock.elapsedRealtime() - syncStart
+                Timber.i(
+                    "sync.timing.summary device=%s records=%d total_ms=%d " +
+                        "ble_ms=%d location_ms=%d submit_ms=%d",
+                    deviceId, readings.size, totalElapsed,
+                    bleElapsed, locationElapsed, submitElapsed
                 )
                 val tempMin = readings.minOfOrNull { it.temperature }
                 val tempMax = readings.maxOfOrNull { it.temperature }

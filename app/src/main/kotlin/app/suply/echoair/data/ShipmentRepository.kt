@@ -1,6 +1,7 @@
 package app.suply.echoair.data
 
 import android.content.Context
+import android.os.SystemClock
 import androidx.work.WorkManager
 import app.suply.echoair.data.api.EchoScanRequest
 import app.suply.echoair.data.api.EchoScanResponse
@@ -135,6 +136,12 @@ class ShipmentRepository @Inject constructor(
         deviceClockOffsetSeconds: Long? = null,
         location: LocationDto? = null
     ): EchoScanResponse? {
+        // === Timing instrumentation (v0.5.4) ===
+        // Splits the submitRecords wall time into Room insert vs HTTP
+        // POST so we can see whether the upload tail is dominated by
+        // local storage or by the network. Tag prefix matches the
+        // orchestrator's "sync.timing.*" so a single grep across logcat
+        // pulls the whole per-device breakdown.
         val rows = records.map {
             TemperatureRecord(
                 deviceId = deviceId,
@@ -143,7 +150,13 @@ class ShipmentRepository @Inject constructor(
                 humidity = it.humidity
             )
         }
+        val persistStart = SystemClock.elapsedRealtime()
         recordDao.insertAll(rows)
+        val persistElapsed = SystemClock.elapsedRealtime() - persistStart
+        Timber.i(
+            "sync.timing.persist device=%s elapsed_ms=%d rows=%d",
+            deviceId, persistElapsed, rows.size
+        )
 
         val request = EchoScanRequest(
             deviceId = deviceId,
@@ -151,6 +164,7 @@ class ShipmentRepository @Inject constructor(
             deviceClockOffsetSeconds = deviceClockOffsetSeconds,
             location = location
         )
+        val uploadStart = SystemClock.elapsedRealtime()
         return try {
             val resp = api.echoScan(request)
             recordDao.markUploaded(deviceId)
@@ -159,9 +173,19 @@ class ShipmentRepository @Inject constructor(
                 status = "scanned",
                 seenAt = System.currentTimeMillis()
             )
+            val uploadElapsed = SystemClock.elapsedRealtime() - uploadStart
+            Timber.i(
+                "sync.timing.upload device=%s elapsed_ms=%d outcome=ok",
+                deviceId, uploadElapsed
+            )
             resp
         } catch (t: Throwable) {
+            val uploadElapsed = SystemClock.elapsedRealtime() - uploadStart
             Timber.w(t, "echoScan failed; queuing for retry")
+            Timber.i(
+                "sync.timing.upload device=%s elapsed_ms=%d outcome=queued",
+                deviceId, uploadElapsed
+            )
             uploadDao.enqueue(
                 PendingUpload(
                     deviceId = deviceId,
