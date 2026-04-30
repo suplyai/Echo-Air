@@ -5,6 +5,7 @@ import android.bluetooth.BluetoothManager
 import android.content.Context
 import android.os.SystemClock
 import app.suply.echoair.data.api.ReadingDto
+import app.suply.echoair.diagnostics.SyncTimingRecorder
 import com.kkmcn.kbeaconlib2.KBCfgPackage.KBSensorType
 import com.kkmcn.kbeaconlib2.KBConnPara
 import com.kkmcn.kbeaconlib2.KBConnState
@@ -45,7 +46,8 @@ import kotlin.coroutines.resumeWithException
  */
 @Singleton
 class BleConnectionManager @Inject constructor(
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    private val timingRecorder: SyncTimingRecorder
 ) {
 
     data class DownloadProgress(val current: Int, val total: Int)
@@ -68,6 +70,10 @@ class BleConnectionManager @Inject constructor(
 
     suspend fun downloadLog(
         mac: String,
+        // deviceId is informational — only used to key the diagnostic
+        // SyncTimingRecorder so the post-sync debug dialog can surface
+        // per-stage timings. BLE behaviour is unchanged.
+        deviceId: String? = null,
         password: String = KBeaconIds.DEFAULT_PASSWORD,
         onProgress: ((DownloadProgress) -> Unit)? = null
     ): LogReadResult = slots.withPermit {
@@ -76,7 +82,7 @@ class BleConnectionManager @Inject constructor(
         while (attempt < MAX_ATTEMPTS) {
             attempt++
             try {
-                return@withPermit attemptDownload(mac, password, onProgress)
+                return@withPermit attemptDownload(mac, deviceId, password, onProgress)
             } catch (t: Throwable) {
                 lastError = t
                 Timber.w(t, "Download attempt $attempt for $mac failed")
@@ -88,6 +94,7 @@ class BleConnectionManager @Inject constructor(
 
     private suspend fun attemptDownload(
         mac: String,
+        deviceId: String?,
         password: String,
         onProgress: ((DownloadProgress) -> Unit)?
     ): LogReadResult = withContext(Dispatchers.Main) {
@@ -112,6 +119,7 @@ class BleConnectionManager @Inject constructor(
                 "(kbeaconlib2 requests MTU=251 in onServicesDiscovered; " +
                 "no requestConnectionPriority(HIGH) call anywhere — default is BALANCED)"
         )
+        deviceId?.let { timingRecorder.start(it, mac) }
         val beacon = resolveBeacon(mac) ?: error("unknown beacon $mac")
 
         val connectStart = SystemClock.elapsedRealtime()
@@ -122,6 +130,7 @@ class BleConnectionManager @Inject constructor(
             "ble.timing.connect mac=%s elapsed_ms=%d mtu=%s",
             mac, connectElapsed, negotiatedMtu?.toString() ?: "unknown"
         )
+        deviceId?.let { timingRecorder.connect(it, connectElapsed, negotiatedMtu) }
 
         try {
             // Single sensor type on S23/S23H — HTHumidity covers both. The
@@ -142,6 +151,7 @@ class BleConnectionManager @Inject constructor(
                 "ble.timing.info mac=%s elapsed_ms=%d total_records=%d unread=%d",
                 mac, infoElapsed, total, info.unreadRecordNumber ?: -1
             )
+            deviceId?.let { timingRecorder.info(it, infoElapsed, total) }
             Timber.d(
                 "Device %s: total=%d unread=%d deviceUtc=%d phoneUtc=%d offset=%ds",
                 mac, total, info.unreadRecordNumber ?: -1, deviceUtc, phoneUtcSeconds, clockOffset
@@ -184,6 +194,7 @@ class BleConnectionManager @Inject constructor(
                     collected.size, total, batch.nextPos,
                     if (batchElapsed > 0) batch.records.size * 1000.0 / batchElapsed else 0.0
                 )
+                deviceId?.let { timingRecorder.batch(it, batchIdx, batchElapsed, batch.records.size) }
                 batchIdx++
                 nextPos = batch.nextPos
                 onProgress?.invoke(DownloadProgress(collected.size, total))
@@ -198,6 +209,7 @@ class BleConnectionManager @Inject constructor(
                 connectElapsed, infoElapsed, batchesElapsed, downloadElapsed,
                 if (batchesElapsed > 0) collected.size * 1000.0 / batchesElapsed else 0.0
             )
+            deviceId?.let { timingRecorder.bleSummary(it, collected.size, downloadElapsed) }
             LogReadResult(records = collected, deviceClockOffsetSeconds = clockOffset)
         } finally {
             disconnectQuietly(mac)

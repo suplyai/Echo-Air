@@ -63,7 +63,10 @@ import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import app.suply.echoair.R
 import app.suply.echoair.ble.CollectionOrchestrator.Device
+import app.suply.echoair.BuildConfig
 import app.suply.echoair.ble.CollectionOrchestrator.DeviceState
+import app.suply.echoair.diagnostics.DeviceSyncTiming
+import app.suply.echoair.diagnostics.SyncTimingDialog
 import app.suply.echoair.location.LocationRationaleDialog
 import app.suply.echoair.ui.haptics.EchoHaptics
 import kotlinx.coroutines.delay
@@ -79,6 +82,11 @@ fun CollectionScreen(
     val state by vm.state.collectAsState()
     val shipment by vm.shipment.collectAsState()
     val units by vm.units.collectAsState()
+    // Debug-only sync-timing surface. Released builds don't display
+    // anything that depends on this flow; the surface tree-shakes out
+    // via BuildConfig.DEBUG checks at the call sites.
+    val syncTimings by vm.timingRecorder.records.collectAsState()
+    var timingToShow by remember { mutableStateOf<DeviceSyncTiming?>(null) }
     val context = LocalContext.current
 
     val blePerms = remember {
@@ -216,7 +224,12 @@ fun CollectionScreen(
                             )
                         }
                         items(rows, key = { it.deviceId }) { device ->
-                            DeviceRow(device, onRetry = { vm.retry(device.deviceId) })
+                            DeviceRow(
+                                device = device,
+                                onRetry = { vm.retry(device.deviceId) },
+                                timing = syncTimings[device.deviceId],
+                                onShowTiming = { timingToShow = it }
+                            )
                         }
                     }
                     // Devices whose unit_id doesn't match any known unit
@@ -242,11 +255,20 @@ fun CollectionScreen(
                     }
                 } else {
                     items(state.devices, key = { it.deviceId }) { device ->
-                        DeviceRow(device, onRetry = { vm.retry(device.deviceId) })
+                        DeviceRow(
+                            device = device,
+                            onRetry = { vm.retry(device.deviceId) },
+                            timing = syncTimings[device.deviceId],
+                            onShowTiming = { timingToShow = it }
+                        )
                     }
                 }
             }
         }
+    }
+
+    timingToShow?.let { t ->
+        SyncTimingDialog(timing = t, onDismiss = { timingToShow = null })
     }
 
     if (showLocationRationale) {
@@ -387,7 +409,16 @@ private fun formatAirport(code: String?, city: String?): String? {
 }
 
 @Composable
-private fun DeviceRow(device: Device, onRetry: () -> Unit) {
+private fun DeviceRow(
+    device: Device,
+    onRetry: () -> Unit,
+    /** Recorded timing for this device, or null if no sync has produced
+     *  a record yet. Only consulted in BuildConfig.DEBUG builds. */
+    timing: DeviceSyncTiming? = null,
+    /** Click handler for the debug-only "View timing" link below the
+     *  device row. The screen-level dialog state owns the rendering. */
+    onShowTiming: (DeviceSyncTiming) -> Unit = {}
+) {
     val progress by animateFloatAsState(targetValue = device.progress, label = "deviceProgress")
     val appContext = LocalContext.current.applicationContext
 
@@ -488,6 +519,23 @@ private fun DeviceRow(device: Device, onRetry: () -> Unit) {
             }
             if (device.alarm) {
                 Text(stringResource(R.string.collection_alarm_on_device), style = MaterialTheme.typography.bodySmall, color = colorResource(R.color.state_error))
+            }
+            // Debug-only post-sync timing inspector. Compiles into the
+            // tree only on debug builds (BuildConfig.DEBUG check); the
+            // release branch is structurally absent. Timing entry is
+            // populated by SyncTimingRecorder once the orchestrator's
+            // finish() lands, so the link only appears once a sync has
+            // produced numbers worth showing.
+            if (BuildConfig.DEBUG && timing != null) {
+                TextButton(
+                    onClick = { onShowTiming(timing) },
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                ) {
+                    Text(
+                        text = "View timing (${timing.totalMs} ms)",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
         }
     }

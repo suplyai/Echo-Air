@@ -2,6 +2,7 @@ package app.suply.echoair.ble
 
 import android.os.SystemClock
 import app.suply.echoair.data.ShipmentRepository
+import app.suply.echoair.diagnostics.SyncTimingRecorder
 import app.suply.echoair.location.LocationCapture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,7 +37,8 @@ class CollectionOrchestrator @Inject constructor(
     private val scanner: BleScanner,
     private val connection: BleConnectionManager,
     private val repo: ShipmentRepository,
-    private val locationCapture: LocationCapture
+    private val locationCapture: LocationCapture,
+    private val timingRecorder: SyncTimingRecorder
 ) {
     enum class DeviceState { SEARCHING, IN_RANGE, SYNCING, COLLECTED, MISSING, ERROR }
 
@@ -200,7 +202,10 @@ class CollectionOrchestrator @Inject constructor(
                 val locationDeferred = scope.async { locationCapture.captureOnce() }
 
                 val bleStart = SystemClock.elapsedRealtime()
-                val result = connection.downloadLog(beacon.mac) { progress ->
+                val result = connection.downloadLog(
+                    mac = beacon.mac,
+                    deviceId = deviceId
+                ) { progress ->
                     val frac = if (progress.total == 0) 0f else progress.current / progress.total.toFloat()
                     updateDevice(deviceId) { it.copy(progress = frac) }
                 }
@@ -217,6 +222,7 @@ class CollectionOrchestrator @Inject constructor(
                     "sync.timing.location device=%s elapsed_ms=%d attached=%b",
                     deviceId, locationElapsed, location != null
                 )
+                timingRecorder.location(deviceId, locationElapsed, location != null)
 
                 val submitStart = SystemClock.elapsedRealtime()
                 val resp = repo.submitRecords(
@@ -238,6 +244,7 @@ class CollectionOrchestrator @Inject constructor(
                     deviceId, readings.size, totalElapsed,
                     bleElapsed, locationElapsed, submitElapsed
                 )
+                timingRecorder.finish(deviceId, totalElapsed)
                 val tempMin = readings.minOfOrNull { it.temperature }
                 val tempMax = readings.maxOfOrNull { it.temperature }
                 updateDevice(deviceId) {

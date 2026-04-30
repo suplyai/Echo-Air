@@ -22,6 +22,7 @@ import app.suply.echoair.data.db.RecordDao
 import app.suply.echoair.data.db.ShipmentDao
 import app.suply.echoair.data.db.TemperatureRecord
 import app.suply.echoair.data.db.UnitDao
+import app.suply.echoair.diagnostics.SyncTimingRecorder
 import app.suply.echoair.work.UploadWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.Json
@@ -43,7 +44,8 @@ class ShipmentRepository @Inject constructor(
     private val unitDao: UnitDao,
     private val recordDao: RecordDao,
     private val uploadDao: PendingUploadDao,
-    private val json: Json
+    private val json: Json,
+    private val timingRecorder: SyncTimingRecorder
 ) {
 
     suspend fun identifyFromImage(imageDataUrl: String): VisionResponse {
@@ -157,6 +159,7 @@ class ShipmentRepository @Inject constructor(
             "sync.timing.persist device=%s elapsed_ms=%d rows=%d",
             deviceId, persistElapsed, rows.size
         )
+        timingRecorder.persist(deviceId, persistElapsed)
 
         val request = EchoScanRequest(
             deviceId = deviceId,
@@ -178,6 +181,7 @@ class ShipmentRepository @Inject constructor(
                 "sync.timing.upload device=%s elapsed_ms=%d outcome=ok",
                 deviceId, uploadElapsed
             )
+            timingRecorder.upload(deviceId, uploadElapsed, "ok")
             resp
         } catch (t: Throwable) {
             val uploadElapsed = SystemClock.elapsedRealtime() - uploadStart
@@ -186,6 +190,7 @@ class ShipmentRepository @Inject constructor(
                 "sync.timing.upload device=%s elapsed_ms=%d outcome=queued",
                 deviceId, uploadElapsed
             )
+            timingRecorder.upload(deviceId, uploadElapsed, "queued")
             uploadDao.enqueue(
                 PendingUpload(
                     deviceId = deviceId,
