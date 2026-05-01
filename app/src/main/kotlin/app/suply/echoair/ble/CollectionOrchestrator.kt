@@ -76,7 +76,23 @@ class CollectionOrchestrator @Inject constructor(
         val shipmentId: String? = null,
         val devices: List<Device> = emptyList(),
         val allScanned: Boolean = false,
-        val running: Boolean = false
+        val running: Boolean = false,
+        /**
+         * Epoch-ms of the last meaningful state mutation (start, beacon
+         * seen, device state change, finalize). Drives the staleness
+         * check the Collection screen runs on reopen — if the previous
+         * session went idle for too long we route the user to home
+         * instead of resuming with stale device cards. v0.5.8.
+         */
+        val lastInteractionAt: Long = 0L,
+        /**
+         * Set the moment the user explicitly ends the session — the
+         * "Finish" tap on the all-collected state, or the
+         * close-without-remaining-devices confirmation. Once non-null,
+         * the next reopen always routes to home regardless of how
+         * recent it was. v0.5.8.
+         */
+        val finalizedAt: Long? = null
     ) {
         val collectedCount: Int get() = devices.count { it.collected }
         val totalCount: Int get() = devices.size
@@ -109,7 +125,8 @@ class CollectionOrchestrator @Inject constructor(
                     unitId = it.unitId
                 )
             },
-            running = true
+            running = true,
+            lastInteractionAt = searchStart
         )
         scanJob = scope.launch { runScan() }
     }
@@ -118,6 +135,28 @@ class CollectionOrchestrator @Inject constructor(
         scanJob?.cancel()
         scanJob = null
         _state.update { it.copy(running = false) }
+    }
+
+    /**
+     * Mark the session as ended. Set by the ViewModel when the user taps
+     * "Finish" on the all-collected state or confirms close-without-
+     * remaining. This is the missing success-path cleanup hook that
+     * v0.5.7 and earlier didn't have — without it, the @Singleton
+     * orchestrator + foreground service would keep `_state` populated
+     * indefinitely and a reopen would land on the previous shipment
+     * instead of a clean entry.
+     *
+     * stop() preserves [State.finalizedAt] (it only sets running=false
+     * via copy), so the reopen-side staleness check can read it.
+     */
+    fun finalize() {
+        _state.update {
+            it.copy(
+                finalizedAt = System.currentTimeMillis(),
+                lastInteractionAt = System.currentTimeMillis()
+            )
+        }
+        stop()
     }
 
     private suspend fun runScan() {
@@ -269,7 +308,12 @@ class CollectionOrchestrator @Inject constructor(
                     )
                 }
                 resp?.let { r ->
-                    _state.update { it.copy(allScanned = r.allScanned) }
+                    _state.update {
+                        it.copy(
+                            allScanned = r.allScanned,
+                            lastInteractionAt = System.currentTimeMillis()
+                        )
+                    }
                 }
             } catch (t: Throwable) {
                 Timber.e(t, "collection failed for $deviceId")
@@ -310,7 +354,8 @@ class CollectionOrchestrator @Inject constructor(
                     if (it.state == DeviceState.SEARCHING || it.state == DeviceState.IN_RANGE)
                         it.copy(state = DeviceState.MISSING)
                     else it
-                }
+                },
+                lastInteractionAt = System.currentTimeMillis()
             )
         }
     }
@@ -324,7 +369,10 @@ class CollectionOrchestrator @Inject constructor(
 
     private fun updateDevice(deviceId: String, transform: (Device) -> Device) {
         _state.update { s ->
-            s.copy(devices = s.devices.map { if (it.deviceId == deviceId) transform(it) else it })
+            s.copy(
+                devices = s.devices.map { if (it.deviceId == deviceId) transform(it) else it },
+                lastInteractionAt = System.currentTimeMillis()
+            )
         }
     }
 

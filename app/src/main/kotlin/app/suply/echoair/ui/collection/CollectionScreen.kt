@@ -107,7 +107,26 @@ fun CollectionScreen(
 
     LaunchedEffect(shipmentId) {
         val granted = blePerms.all { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
-        if (granted) vm.start(shipmentId) else permLauncher.launch(blePerms)
+        if (!granted) {
+            permLauncher.launch(blePerms)
+            return@LaunchedEffect
+        }
+        // Session-state gate (v0.5.8). Reopens land here via the
+        // navigation backstack — the orchestrator @Singleton may
+        // already hold state for this shipmentId from a previous
+        // session that was finalized, idle too long, or "all
+        // collected but Finish never tapped". In any of those cases
+        // we route the user back to home instead of showing them
+        // stale device cards. ResumeFresh path is the normal
+        // first-entry behaviour and is unchanged.
+        when (vm.shouldResumeOrFinish(shipmentId)) {
+            CollectionViewModel.SessionAction.ResumeFresh ->
+                vm.start(shipmentId)
+            CollectionViewModel.SessionAction.GoHome -> {
+                vm.finalize()
+                onClose()
+            }
+        }
     }
 
     var confirmClose by remember { mutableStateOf(false) }
@@ -177,7 +196,16 @@ fun CollectionScreen(
                 total = state.totalCount,
                 allFinal = allFinal,
                 focusUnitLabel = inFlightUnitFocus,
-                onFinish = onClose,
+                // Wrap onClose so the success path runs through finalize
+                // first — stamps finalizedAt on orchestrator state +
+                // stops the foreground service so the next reopen lands
+                // on home with no stale device cards. Without this, the
+                // @Singleton orchestrator would carry the previous
+                // shipment's state forward indefinitely (v0.5.8).
+                onFinish = {
+                    vm.finalize()
+                    onClose()
+                },
                 onClosePartial = { confirmClose = true }
             )
         }
