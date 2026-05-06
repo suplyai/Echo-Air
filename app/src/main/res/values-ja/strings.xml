@@ -56,6 +56,13 @@
     </plurals>
     <string name="confirm_start_scanning">スキャン開始</string>
     <string name="common_cancel">キャンセル</string>
+
+    <string name="system_bluetooth_off_title">Bluetoothがオフです</string>
+    <string name="system_bluetooth_off_body">デバイスデータの収集にはBluetoothが必要です。続行するには有効にしてください。</string>
+    <string name="system_bluetooth_enable_action">Bluetoothを有効にする</string>
+    <string name="system_location_off_title">位置情報サービスがオフです</string>
+    <string name="system_location_off_body">AndroidのBluetoothスキャンには位置情報サービスが必要です。続行するには有効にしてください。</string>
+    <string name="system_location_enable_action">位置情報の設定を開く</string>
     <string name="common_ok">OK</string>
 
     <string name="collection_title_fallback">収集中</string>

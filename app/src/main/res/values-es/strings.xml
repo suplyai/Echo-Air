@@ -59,6 +59,13 @@
     </plurals>
     <string name="confirm_start_scanning">Comenzar escaneo</string>
     <string name="common_cancel">Cancelar</string>
+
+    <string name="system_bluetooth_off_title">El Bluetooth está desactivado</string>
+    <string name="system_bluetooth_off_body">Se requiere Bluetooth para recolectar datos de los dispositivos. Actívalo para continuar.</string>
+    <string name="system_bluetooth_enable_action">Activar Bluetooth</string>
+    <string name="system_location_off_title">Los servicios de ubicación están desactivados</string>
+    <string name="system_location_off_body">Los servicios de ubicación son necesarios para el escaneo Bluetooth en Android. Actívalos para continuar.</string>
+    <string name="system_location_enable_action">Abrir ajustes de ubicación</string>
     <string name="common_ok">OK</string>
 
     <string name="collection_title_fallback">Recolectando</string>

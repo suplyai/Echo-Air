@@ -114,12 +114,15 @@ class BleConnectionManager @Inject constructor(
         // SystemClock.elapsedRealtime is monotonic across system clock jumps.
         // No behavioural change here; this only writes to the log.
         val downloadStart = SystemClock.elapsedRealtime()
+        val btEnabledAtStart = btAdapter?.isEnabled == true
         Timber.i(
             "ble.config note=connection_priority_default mtu_target=251 " +
+                "bt_enabled=%b " +
                 "(kbeaconlib2 requests MTU=251 in onServicesDiscovered; " +
-                "no requestConnectionPriority(HIGH) call anywhere — default is BALANCED)"
+                "no requestConnectionPriority(HIGH) call anywhere — default is BALANCED)",
+            btEnabledAtStart
         )
-        deviceId?.let { timingRecorder.start(it, mac) }
+        deviceId?.let { timingRecorder.start(it, mac, btEnabledAtStart) }
         val beacon = resolveBeacon(mac) ?: error("unknown beacon $mac")
 
         val connectStart = SystemClock.elapsedRealtime()

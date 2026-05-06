@@ -1,8 +1,11 @@
 package app.suply.echoair.ui.collection
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
@@ -65,6 +68,8 @@ import app.suply.echoair.R
 import app.suply.echoair.ble.CollectionOrchestrator.Device
 import app.suply.echoair.BuildConfig
 import app.suply.echoair.ble.CollectionOrchestrator.DeviceState
+import app.suply.echoair.ble.rememberBluetoothEnabled
+import app.suply.echoair.ble.rememberLocationServicesEnabled
 import app.suply.echoair.diagnostics.DeviceSyncTiming
 import app.suply.echoair.diagnostics.SyncTimingDialog
 import app.suply.echoair.location.LocationRationaleDialog
@@ -105,12 +110,40 @@ fun CollectionScreen(
         if (result.values.all { it }) vm.start(shipmentId)
     }
 
-    LaunchedEffect(shipmentId) {
+    // Bluetooth + Location-services gates (v0.5.9). Both are required
+    // for BLE scanning on Android — toggled off by the user (Quick
+    // Settings tile, accidentally) or by Android battery-management,
+    // they produce silent failure modes that the field reported as
+    // "the app appears broken." rememberBluetoothEnabled /
+    // rememberLocationServicesEnabled are BroadcastReceiver-backed,
+    // so they update reactively whether the toggle happens before
+    // the user enters the screen or while a scan is in progress.
+    val bluetoothEnabled by rememberBluetoothEnabled()
+    val locationServicesEnabled by rememberLocationServicesEnabled()
+
+    val btEnableLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) {
+        // No-op — rememberBluetoothEnabled's receiver flips the state
+        // when the OS broadcasts the new adapter state. The dialog
+        // dismisses on the next composition because its gating
+        // condition flips.
+    }
+    val locationSettingsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { /* same — receiver-driven */ }
+
+    LaunchedEffect(shipmentId, bluetoothEnabled, locationServicesEnabled) {
         val granted = blePerms.all { ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED }
         if (!granted) {
             permLauncher.launch(blePerms)
             return@LaunchedEffect
         }
+        // Hard gate: don't start a scan with BT or location services
+        // off. The dialog blocks UI forward progression; once the user
+        // re-enables, the receiver flips state, this LaunchedEffect
+        // re-runs (it's keyed on both flags), and we proceed.
+        if (!bluetoothEnabled || !locationServicesEnabled) return@LaunchedEffect
         // Session-state gate (v0.5.8). Reopens land here via the
         // navigation backstack — the orchestrator @Singleton may
         // already hold state for this shipmentId from a previous
@@ -297,6 +330,50 @@ fun CollectionScreen(
 
     timingToShow?.let { t ->
         SyncTimingDialog(timing = t, onDismiss = { timingToShow = null })
+    }
+
+    // Bluetooth-off prompt. Modal and reactive: appears whenever
+    // bluetoothEnabled flips false, dismisses automatically once the
+    // user re-enables (or backs out via Cancel → onClose). Same dialog
+    // covers both pre-collection and mid-collection cases — the field
+    // distinction the spec asked for is in the framing, not the flow.
+    if (!bluetoothEnabled) {
+        AlertDialog(
+            onDismissRequest = onClose,
+            title = { Text(stringResource(R.string.system_bluetooth_off_title)) },
+            text = { Text(stringResource(R.string.system_bluetooth_off_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    btEnableLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                }) { Text(stringResource(R.string.system_bluetooth_enable_action)) }
+            },
+            dismissButton = {
+                TextButton(onClick = onClose) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
+    } else if (!locationServicesEnabled) {
+        // Location services prompt. Same pattern as the BT dialog;
+        // checked second so the user sees one prompt at a time
+        // (BT first because it's the more common toggle).
+        AlertDialog(
+            onDismissRequest = onClose,
+            title = { Text(stringResource(R.string.system_location_off_title)) },
+            text = { Text(stringResource(R.string.system_location_off_body)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    locationSettingsLauncher.launch(
+                        Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                    )
+                }) { Text(stringResource(R.string.system_location_enable_action)) }
+            },
+            dismissButton = {
+                TextButton(onClick = onClose) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            }
+        )
     }
 
     if (showLocationRationale) {

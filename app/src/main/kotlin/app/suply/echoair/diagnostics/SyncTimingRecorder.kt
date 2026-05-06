@@ -37,8 +37,12 @@ class SyncTimingRecorder @Inject constructor() {
 
     private val pending = ConcurrentHashMap<String, Builder>()
 
-    fun start(deviceId: String, mac: String) {
-        pending[deviceId] = Builder(deviceId = deviceId, mac = mac)
+    fun start(deviceId: String, mac: String, bluetoothEnabled: Boolean) {
+        pending[deviceId] = Builder(
+            deviceId = deviceId,
+            mac = mac,
+            bluetoothEnabledAtStart = bluetoothEnabled
+        )
     }
 
     fun connect(deviceId: String, elapsedMs: Long, mtu: Int?) {
@@ -101,6 +105,7 @@ class SyncTimingRecorder @Inject constructor() {
         val timing = DeviceSyncTiming(
             deviceId = b.deviceId,
             mac = b.mac,
+            bluetoothEnabledAtStart = b.bluetoothEnabledAtStart,
             negotiatedMtu = b.negotiatedMtu,
             totalRecords = b.totalRecords,
             recordsCollected = b.recordsCollected,
@@ -125,6 +130,7 @@ class SyncTimingRecorder @Inject constructor() {
     private class Builder(
         val deviceId: String,
         val mac: String,
+        val bluetoothEnabledAtStart: Boolean,
         var negotiatedMtu: Int? = null,
         var totalRecords: Int = 0,
         var recordsCollected: Int = 0,
@@ -152,6 +158,14 @@ class SyncTimingRecorder @Inject constructor() {
 data class DeviceSyncTiming(
     val deviceId: String,
     val mac: String,
+    /**
+     * Adapter state at the moment the orchestrator entered its
+     * BLE-work block (v0.5.9). Should always be true in practice —
+     * the screen-level gate prevents vm.start from running otherwise
+     * — but useful as a sanity check in field captures and a
+     * regression sentinel if the gate were ever bypassed.
+     */
+    val bluetoothEnabledAtStart: Boolean = true,
     val negotiatedMtu: Int?,
     val totalRecords: Int,
     val recordsCollected: Int,
@@ -194,6 +208,7 @@ data class DeviceSyncTiming(
     fun toPlainText(): String = buildString {
         appendLine("Sync timing — device $deviceId ($mac)")
         appendLine("Total: ${totalMs}ms across $recordsCollected/$totalRecords records")
+        appendLine("BT at start: $bluetoothEnabledAtStart")
         appendLine()
         appendLine("BLE — total ${bleTotalMs}ms (${"%.1f".format(bleRecordsPerSecond)} rec/s)")
         appendLine("  connect      ${connectMs}ms  mtu=${negotiatedMtu ?: "?"}")

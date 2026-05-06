@@ -56,6 +56,13 @@
     </plurals>
     <string name="confirm_start_scanning">开始扫描</string>
     <string name="common_cancel">取消</string>
+
+    <string name="system_bluetooth_off_title">蓝牙已关闭</string>
+    <string name="system_bluetooth_off_body">收集设备数据需要使用蓝牙。请启用蓝牙以继续。</string>
+    <string name="system_bluetooth_enable_action">启用蓝牙</string>
+    <string name="system_location_off_title">位置服务已关闭</string>
+    <string name="system_location_off_body">Android 蓝牙扫描需要位置服务。请启用以继续。</string>
+    <string name="system_location_enable_action">打开位置设置</string>
     <string name="common_ok">确定</string>
 
     <string name="collection_title_fallback">正在收集</string>

@@ -97,6 +97,19 @@
     </plurals>
     <string name="confirm_start_scanning">Start scanning</string>
     <string name="common_cancel">Cancel</string>
+
+    <!-- ============ System-state prompts (Bluetooth / Location services) ============ -->
+    <!-- v0.5.9. Pre- and mid-collection gates: BLE scanning silently
+         fails on Android when Bluetooth or location services are off,
+         so the Collection screen surfaces an explicit prompt with a
+         one-tap recovery action. Dialogs are modal — cancel routes
+         the user back to home. -->
+    <string name="system_bluetooth_off_title">Bluetooth is off</string>
+    <string name="system_bluetooth_off_body">Bluetooth is required to collect device data. Please enable it to continue.</string>
+    <string name="system_bluetooth_enable_action">Enable Bluetooth</string>
+    <string name="system_location_off_title">Location services are off</string>
+    <string name="system_location_off_body">Location services are required for Bluetooth scanning on Android. Please enable them to continue.</string>
+    <string name="system_location_enable_action">Open Location Settings</string>
     <string name="common_ok">OK</string>
 
     <!-- ============ Collection screen ============ -->

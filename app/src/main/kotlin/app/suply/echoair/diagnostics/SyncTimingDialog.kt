@@ -138,6 +138,15 @@ private fun HeaderRow(timing: DeviceSyncTiming) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
+        // Sentinel: should always read "true" because the screen-level
+        // gate prevents the BLE flow when BT is off. If a field capture
+        // shows "false" here, the gate has been bypassed — useful
+        // signal to surface in the diagnostic.
+        Text(
+            "BT at start: ${timing.bluetoothEnabledAtStart}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
