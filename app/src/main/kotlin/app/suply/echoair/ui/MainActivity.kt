@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
+import app.suply.echoair.BuildConfig
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import app.suply.echoair.ui.awb.ManualAwbScreen
@@ -96,7 +97,18 @@ private fun EchoAirNavHost() {
             HomeScreen(
                 onScanQr = { nav.navigate(Routes.capture(CaptureMode.QR)) },
                 onEnterAwb = { nav.navigate(Routes.AWB_ENTRY) },
-                onScanDocumentDebug = { nav.navigate(Routes.capture(CaptureMode.DOCUMENT)) }
+                // Belt-and-suspenders gate (v0.6.0). The HomeScreen
+                // caller wraps the button in `if (BuildConfig.DEBUG)`,
+                // so this lambda is unreachable in release — but
+                // making it a no-op here documents the intent and
+                // means a future code path that wires up the lambda
+                // outside the gated button still can't navigate to
+                // the OCR scanner in production.
+                onScanDocumentDebug = if (BuildConfig.DEBUG) {
+                    { nav.navigate(Routes.capture(CaptureMode.DOCUMENT)) }
+                } else {
+                    { /* no-op in release — OCR is a debug-only path */ }
+                }
             )
         }
         composable(Routes.CAPTURE) { entry ->
