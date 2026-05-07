@@ -17,7 +17,6 @@
     <string name="home_footer_no_account">No se necesita cuenta. Sus datos solo se comparten con las partes de este envío.</string>
     <string name="home_hero_image_description">Un operador de almacén frente a contenedores de carga aérea, con un teléfono en la mano.</string>
     <string name="home_language_selector_label">Cambiar idioma</string>
-    <string name="home_debug_scan_document">[debug] Escanear documento (OCR)</string>
 
     <string name="settings_title">Ajustes</string>
     <string name="settings_battery_optimisation">Desactivar optimización de batería</string>
@@ -35,8 +34,6 @@
     <string name="language_first_launch_change">Cambiar idioma</string>
 
     <string name="capture_title_qr">Escanear QR del dispositivo</string>
-    <string name="capture_title_document">Escanear documento</string>
-    <string name="capture_document_button">Capturar</string>
     <string name="capture_permission_grant">Conceder permiso de cámara</string>
 
     <string name="awb_title">Ingresar AWB</string>

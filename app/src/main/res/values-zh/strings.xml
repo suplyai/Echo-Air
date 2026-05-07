@@ -15,7 +15,6 @@
     <string name="home_footer_no_account">无需账户。您的数据仅与本次货运的相关方共享。</string>
     <string name="home_hero_image_description">一名仓库操作员手持手机站在航空货运集装箱前。</string>
     <string name="home_language_selector_label">切换语言</string>
-    <string name="home_debug_scan_document">[调试] 扫描文档 (OCR)</string>
 
     <string name="settings_title">设置</string>
     <string name="settings_battery_optimisation">关闭电池优化</string>
@@ -33,8 +32,6 @@
     <string name="language_first_launch_change">更改语言</string>
 
     <string name="capture_title_qr">扫描设备二维码</string>
-    <string name="capture_title_document">扫描文档</string>
-    <string name="capture_document_button">拍摄</string>
     <string name="capture_permission_grant">授予相机权限</string>
 
     <string name="awb_title">输入运单号</string>

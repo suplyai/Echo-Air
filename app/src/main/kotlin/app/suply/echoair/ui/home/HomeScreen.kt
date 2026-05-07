@@ -30,7 +30,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import app.suply.echoair.BuildConfig
 import app.suply.echoair.R
 import app.suply.echoair.ui.locale.AppLocale
 import app.suply.echoair.ui.locale.LanguagePickerSheet
@@ -68,8 +67,7 @@ import kotlinx.coroutines.delay
 @Composable
 fun HomeScreen(
     onScanQr: () -> Unit,
-    onEnterAwb: () -> Unit,
-    onScanDocumentDebug: () -> Unit,
+    onEnterAwb: () -> Unit
 ) {
     var showLanguageSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -140,16 +138,6 @@ fun HomeScreen(
                     .fillMaxWidth()
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             )
-
-            // Debug-only OCR test path. Gated by BuildConfig.DEBUG so it
-            // never ships to release builds.
-            if (BuildConfig.DEBUG) {
-                HorizontalDivider()
-                TextButton(
-                    onClick = onScanDocumentDebug,
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text(stringResource(R.string.home_debug_scan_document)) }
-            }
         }
     }
 

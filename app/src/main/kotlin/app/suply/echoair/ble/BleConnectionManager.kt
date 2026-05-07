@@ -3,9 +3,7 @@ package app.suply.echoair.ble
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.content.Context
-import android.os.SystemClock
 import app.suply.echoair.data.api.ReadingDto
-import app.suply.echoair.diagnostics.SyncTimingRecorder
 import com.kkmcn.kbeaconlib2.KBCfgPackage.KBSensorType
 import com.kkmcn.kbeaconlib2.KBConnPara
 import com.kkmcn.kbeaconlib2.KBConnState
@@ -46,8 +44,7 @@ import kotlin.coroutines.resumeWithException
  */
 @Singleton
 class BleConnectionManager @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val timingRecorder: SyncTimingRecorder
+    @ApplicationContext private val context: Context
 ) {
 
     data class DownloadProgress(val current: Int, val total: Int)
@@ -70,10 +67,6 @@ class BleConnectionManager @Inject constructor(
 
     suspend fun downloadLog(
         mac: String,
-        // deviceId is informational — only used to key the diagnostic
-        // SyncTimingRecorder so the post-sync debug dialog can surface
-        // per-stage timings. BLE behaviour is unchanged.
-        deviceId: String? = null,
         password: String = KBeaconIds.DEFAULT_PASSWORD,
         onProgress: ((DownloadProgress) -> Unit)? = null
     ): LogReadResult = slots.withPermit {
@@ -82,7 +75,7 @@ class BleConnectionManager @Inject constructor(
         while (attempt < MAX_ATTEMPTS) {
             attempt++
             try {
-                return@withPermit attemptDownload(mac, deviceId, password, onProgress)
+                return@withPermit attemptDownload(mac, password, onProgress)
             } catch (t: Throwable) {
                 lastError = t
                 Timber.w(t, "Download attempt $attempt for $mac failed")
@@ -94,7 +87,6 @@ class BleConnectionManager @Inject constructor(
 
     private suspend fun attemptDownload(
         mac: String,
-        deviceId: String?,
         password: String,
         onProgress: ((DownloadProgress) -> Unit)?
     ): LogReadResult = withContext(Dispatchers.Main) {
@@ -106,35 +98,8 @@ class BleConnectionManager @Inject constructor(
         // rememberCoroutineScope is already main-dispatched. We do the same
         // here. All work in this function is callback-driven I/O waits, no
         // CPU-heavy code — main dispatcher is fine.
-        //
-        // === Timing instrumentation (v0.5.4) ===
-        // Wall-clock measurements at every stage so we can break down where
-        // the 1k-record sync minutes are actually going. Tagged
-        // "ble.timing.*" + "ble.config" — grep `adb logcat | grep ble\\.`.
-        // SystemClock.elapsedRealtime is monotonic across system clock jumps.
-        // No behavioural change here; this only writes to the log.
-        val downloadStart = SystemClock.elapsedRealtime()
-        val btEnabledAtStart = btAdapter?.isEnabled == true
-        Timber.i(
-            "ble.config note=connection_priority_default mtu_target=251 " +
-                "bt_enabled=%b " +
-                "(kbeaconlib2 requests MTU=251 in onServicesDiscovered; " +
-                "no requestConnectionPriority(HIGH) call anywhere — default is BALANCED)",
-            btEnabledAtStart
-        )
-        deviceId?.let { timingRecorder.start(it, mac, btEnabledAtStart) }
         val beacon = resolveBeacon(mac) ?: error("unknown beacon $mac")
-
-        val connectStart = SystemClock.elapsedRealtime()
         connect(beacon, password)
-        val connectElapsed = SystemClock.elapsedRealtime() - connectStart
-        val negotiatedMtu = runCatching { beacon.negotiatedMtu }.getOrNull()
-        Timber.i(
-            "ble.timing.connect mac=%s elapsed_ms=%d mtu=%s",
-            mac, connectElapsed, negotiatedMtu?.toString() ?: "unknown"
-        )
-        deviceId?.let { timingRecorder.connect(it, connectElapsed, negotiatedMtu) }
-
         try {
             // Single sensor type on S23/S23H — HTHumidity covers both. The
             // humidity field in KBRecordHumidity is zero / unpopulated on
@@ -143,18 +108,11 @@ class BleConnectionManager @Inject constructor(
             val sensorType = KBSensorType.HTHumidity
 
             // Step 1: query totals + device clock
-            val infoStart = SystemClock.elapsedRealtime()
             val info = readSensorDataInfo(beacon, sensorType)
-            val infoElapsed = SystemClock.elapsedRealtime() - infoStart
             val phoneUtcSeconds = System.currentTimeMillis() / 1000
             val deviceUtc = info.readInfoUtcSeconds ?: phoneUtcSeconds
             val clockOffset = phoneUtcSeconds - deviceUtc
             val total = info.totalRecordNumber ?: 0
-            Timber.i(
-                "ble.timing.info mac=%s elapsed_ms=%d total_records=%d unread=%d",
-                mac, infoElapsed, total, info.unreadRecordNumber ?: -1
-            )
-            deviceId?.let { timingRecorder.info(it, infoElapsed, total) }
             Timber.d(
                 "Device %s: total=%d unread=%d deviceUtc=%d phoneUtc=%d offset=%ds",
                 mac, total, info.unreadRecordNumber ?: -1, deviceUtc, phoneUtcSeconds, clockOffset
@@ -176,43 +134,14 @@ class BleConnectionManager @Inject constructor(
             // place we verify cursor semantics.
             val collected = ArrayList<ReadingDto>(total.coerceAtLeast(0))
             var nextPos = 0L
-            var batchIdx = 0
-            val batchesStart = SystemClock.elapsedRealtime()
             while (collected.size < total) {
-                val batchStart = SystemClock.elapsedRealtime()
                 val batch = readSensorBatch(beacon, sensorType, nextPos, BATCH_SIZE)
-                val batchElapsed = SystemClock.elapsedRealtime() - batchStart
-                if (batch.records.isEmpty()) {
-                    Timber.i(
-                        "ble.timing.batch mac=%s idx=%d elapsed_ms=%d records=0 reason=device_done",
-                        mac, batchIdx, batchElapsed
-                    )
-                    break   // device said done
-                }
+                if (batch.records.isEmpty()) break   // device said done
                 collected.addAll(batch.records)
-                Timber.i(
-                    "ble.timing.batch mac=%s idx=%d elapsed_ms=%d records=%d " +
-                        "cum=%d/%d next_pos=%d rec_per_sec=%.1f",
-                    mac, batchIdx, batchElapsed, batch.records.size,
-                    collected.size, total, batch.nextPos,
-                    if (batchElapsed > 0) batch.records.size * 1000.0 / batchElapsed else 0.0
-                )
-                deviceId?.let { timingRecorder.batch(it, batchIdx, batchElapsed, batch.records.size) }
-                batchIdx++
                 nextPos = batch.nextPos
                 onProgress?.invoke(DownloadProgress(collected.size, total))
                 if (batch.done || nextPos == KBRecordDataRsp.INVALID_DATA_RECORD_POS) break
             }
-            val batchesElapsed = SystemClock.elapsedRealtime() - batchesStart
-            val downloadElapsed = SystemClock.elapsedRealtime() - downloadStart
-            Timber.i(
-                "ble.timing.summary mac=%s records=%d batches=%d " +
-                    "connect_ms=%d info_ms=%d batches_ms=%d total_ms=%d rec_per_sec=%.1f",
-                mac, collected.size, batchIdx,
-                connectElapsed, infoElapsed, batchesElapsed, downloadElapsed,
-                if (batchesElapsed > 0) collected.size * 1000.0 / batchesElapsed else 0.0
-            )
-            deviceId?.let { timingRecorder.bleSummary(it, collected.size, downloadElapsed) }
             LogReadResult(records = collected, deviceClockOffsetSeconds = clockOffset)
         } finally {
             disconnectQuietly(mac)

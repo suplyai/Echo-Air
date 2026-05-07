@@ -10,7 +10,6 @@ import app.suply.echoair.ble.service.CollectionScanService
 import app.suply.echoair.data.ShipmentRepository
 import app.suply.echoair.data.db.CachedShipment
 import app.suply.echoair.data.db.CachedUnit
-import app.suply.echoair.diagnostics.SyncTimingRecorder
 import app.suply.echoair.location.LocationCapture
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,12 +26,7 @@ class CollectionViewModel @Inject constructor(
     // Exposed to the Collection screen so the one-time LocationRationaleDialog
     // can read the acknowledgment state and write the opt-in choice. The
     // capture call itself happens inside the orchestrator.
-    val locationCapture: LocationCapture,
-    // Exposed to the Collection screen for the BuildConfig.DEBUG-only
-    // "View timing" affordance on each completed device row. Release
-    // builds reference this only via the gated composable, so the
-    // timing surface contributes zero UI overhead in production.
-    val timingRecorder: SyncTimingRecorder
+    val locationCapture: LocationCapture
 ) : AndroidViewModel(app) {
 
     val state = orchestrator.state

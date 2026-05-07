@@ -152,14 +152,14 @@ data class ShipmentListResponse(
 // ---------- Vision ----------
 
 /**
- * The vision endpoint accepts either a base64-encoded document image OR a
- * manually-typed AWB number (for the "Enter manually" fallback UX). One of
- * the two must be non-null on any given request; nulls are omitted on the
- * wire via the JSON config's explicitNulls = false.
+ * Identify-shipment request body. The endpoint historically also accepted
+ * an `image_base64` field for the OCR fallback path, but Echo Air ships
+ * AWB-only since v0.6.1 (the OCR path was removed end-to-end). Backend
+ * still accepts the legacy field if other clients send it; we just don't
+ * populate it here.
  */
 @Serializable
 data class VisionRequest(
-    @SerialName("image_base64") val imageBase64: String? = null,
     @SerialName("awb_number") val awbNumber: String? = null
 )
 

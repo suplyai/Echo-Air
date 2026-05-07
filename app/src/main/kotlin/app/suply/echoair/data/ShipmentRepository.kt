@@ -1,7 +1,6 @@
 package app.suply.echoair.data
 
 import android.content.Context
-import android.os.SystemClock
 import androidx.work.WorkManager
 import app.suply.echoair.data.api.EchoScanRequest
 import app.suply.echoair.data.api.EchoScanResponse
@@ -22,7 +21,6 @@ import app.suply.echoair.data.db.RecordDao
 import app.suply.echoair.data.db.ShipmentDao
 import app.suply.echoair.data.db.TemperatureRecord
 import app.suply.echoair.data.db.UnitDao
-import app.suply.echoair.diagnostics.SyncTimingRecorder
 import app.suply.echoair.work.UploadWorker
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.serialization.json.Json
@@ -44,15 +42,8 @@ class ShipmentRepository @Inject constructor(
     private val unitDao: UnitDao,
     private val recordDao: RecordDao,
     private val uploadDao: PendingUploadDao,
-    private val json: Json,
-    private val timingRecorder: SyncTimingRecorder
+    private val json: Json
 ) {
-
-    suspend fun identifyFromImage(imageDataUrl: String): VisionResponse {
-        val resp = api.identifyShipment(VisionRequest(imageBase64 = imageDataUrl))
-        resp.shipment?.let { cache(it) }
-        return resp
-    }
 
     suspend fun lookupDevice(identifier: String): ShipmentDto? {
         val resp = api.lookupDevice(identifier, includeShipment = true)
@@ -138,12 +129,6 @@ class ShipmentRepository @Inject constructor(
         deviceClockOffsetSeconds: Long? = null,
         location: LocationDto? = null
     ): EchoScanResponse? {
-        // === Timing instrumentation (v0.5.4) ===
-        // Splits the submitRecords wall time into Room insert vs HTTP
-        // POST so we can see whether the upload tail is dominated by
-        // local storage or by the network. Tag prefix matches the
-        // orchestrator's "sync.timing.*" so a single grep across logcat
-        // pulls the whole per-device breakdown.
         val rows = records.map {
             TemperatureRecord(
                 deviceId = deviceId,
@@ -152,14 +137,7 @@ class ShipmentRepository @Inject constructor(
                 humidity = it.humidity
             )
         }
-        val persistStart = SystemClock.elapsedRealtime()
         recordDao.insertAll(rows)
-        val persistElapsed = SystemClock.elapsedRealtime() - persistStart
-        Timber.i(
-            "sync.timing.persist device=%s elapsed_ms=%d rows=%d",
-            deviceId, persistElapsed, rows.size
-        )
-        timingRecorder.persist(deviceId, persistElapsed)
 
         val request = EchoScanRequest(
             deviceId = deviceId,
@@ -167,7 +145,6 @@ class ShipmentRepository @Inject constructor(
             deviceClockOffsetSeconds = deviceClockOffsetSeconds,
             location = location
         )
-        val uploadStart = SystemClock.elapsedRealtime()
         return try {
             val resp = api.echoScan(request)
             recordDao.markUploaded(deviceId)
@@ -176,53 +153,9 @@ class ShipmentRepository @Inject constructor(
                 status = "scanned",
                 seenAt = System.currentTimeMillis()
             )
-            val uploadElapsed = SystemClock.elapsedRealtime() - uploadStart
-            Timber.i(
-                "sync.timing.upload device=%s elapsed_ms=%d outcome=ok",
-                deviceId, uploadElapsed
-            )
-            timingRecorder.upload(deviceId, uploadElapsed, "ok")
             resp
         } catch (t: Throwable) {
-            val uploadElapsed = SystemClock.elapsedRealtime() - uploadStart
-            // Surface the failure mode so the diagnostic dialog can show
-            // *why* the upload failed, not just "queued". HttpException
-            // means the server acknowledged the request but returned an
-            // error code (504/502 = gateway timeout, 5xx = backend
-            // crash, 4xx = client problem). SocketTimeoutException /
-            // UnknownHostException / IOException are network-level.
-            val errorClass = t::class.simpleName
-            val httpEx = t as? retrofit2.HttpException
-            val httpCode = httpEx?.code()
-            val errorMessage = t.message?.take(120)
-            // Read the server's actual error payload so the diagnostic
-            // surface carries the real response, not just Retrofit's
-            // synthesised "HTTP 500 " summary. Capped at 2 KB so a stack-
-            // trace HTML page can't dominate the dialog or memory.
-            // errorBody().string() consumes the body and can throw
-            // IOException; runCatching swallows it quietly — losing the
-            // body is strictly better than a secondary crash inside a
-            // catch handler. Only meaningful on HttpException; other
-            // failure modes (timeout, no host, IO) don't carry a body.
-            val errorBody = httpEx?.response()?.errorBody()?.let { eb ->
-                runCatching { eb.string().take(2048) }.getOrNull()
-            }
             Timber.w(t, "echoScan failed; queuing for retry")
-            Timber.i(
-                "sync.timing.upload device=%s elapsed_ms=%d outcome=queued " +
-                    "error_class=%s http=%s msg=\"%s\" body=\"%s\"",
-                deviceId, uploadElapsed,
-                errorClass, httpCode?.toString() ?: "—",
-                errorMessage ?: "—",
-                errorBody?.replace("\n", "\\n")?.take(512) ?: "—"
-            )
-            timingRecorder.upload(
-                deviceId, uploadElapsed, "queued",
-                errorClass = errorClass,
-                httpCode = httpCode,
-                errorMessage = errorMessage,
-                errorBody = errorBody
-            )
             uploadDao.enqueue(
                 PendingUpload(
                     deviceId = deviceId,

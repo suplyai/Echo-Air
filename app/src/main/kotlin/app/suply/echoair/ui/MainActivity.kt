@@ -15,11 +15,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.compose.NavHost
-import app.suply.echoair.BuildConfig
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import app.suply.echoair.ui.awb.ManualAwbScreen
-import app.suply.echoair.ui.capture.CaptureMode
 import app.suply.echoair.ui.capture.CaptureScreen
 import app.suply.echoair.ui.collection.CollectionScreen
 import app.suply.echoair.ui.home.HomeScreen
@@ -76,13 +74,13 @@ class MainActivity : ComponentActivity() {
 
 object Routes {
     const val HOME = "home"
-    const val CAPTURE = "capture/{mode}"
+    const val CAPTURE = "capture"
     const val AWB_ENTRY = "awb_entry"
     const val COLLECTION = "collection/{shipmentId}"
     const val SETTINGS = "settings"
     const val WEB = "web?path={path}&title={title}"
 
-    fun capture(mode: CaptureMode) = "capture/${mode.name}"
+    fun capture() = "capture"
     fun collection(shipmentId: String) = "collection/$shipmentId"
     fun web(path: String, title: String = "") =
         "web?path=${java.net.URLEncoder.encode(path, "UTF-8")}&title=${java.net.URLEncoder.encode(title, "UTF-8")}"
@@ -95,28 +93,12 @@ private fun EchoAirNavHost() {
     NavHost(navController = nav, startDestination = Routes.HOME) {
         composable(Routes.HOME) {
             HomeScreen(
-                onScanQr = { nav.navigate(Routes.capture(CaptureMode.QR)) },
-                onEnterAwb = { nav.navigate(Routes.AWB_ENTRY) },
-                // Belt-and-suspenders gate (v0.6.0). The HomeScreen
-                // caller wraps the button in `if (BuildConfig.DEBUG)`,
-                // so this lambda is unreachable in release — but
-                // making it a no-op here documents the intent and
-                // means a future code path that wires up the lambda
-                // outside the gated button still can't navigate to
-                // the OCR scanner in production.
-                onScanDocumentDebug = if (BuildConfig.DEBUG) {
-                    { nav.navigate(Routes.capture(CaptureMode.DOCUMENT)) }
-                } else {
-                    { /* no-op in release — OCR is a debug-only path */ }
-                }
+                onScanQr = { nav.navigate(Routes.capture()) },
+                onEnterAwb = { nav.navigate(Routes.AWB_ENTRY) }
             )
         }
-        composable(Routes.CAPTURE) { entry ->
-            val mode = entry.arguments?.getString("mode")
-                ?.let { runCatching { CaptureMode.valueOf(it) }.getOrNull() }
-                ?: CaptureMode.QR
+        composable(Routes.CAPTURE) {
             CaptureScreen(
-                mode = mode,
                 onCancel = { nav.popBackStack() },
                 onShipmentReady = { id ->
                     nav.navigate(Routes.collection(id)) {
@@ -155,7 +137,7 @@ private fun EchoAirNavHost() {
                 onBridgeCommand = { cmd ->
                     when (cmd) {
                         is WebViewBridge.Command.OpenCapture ->
-                            nav.navigate(Routes.capture(CaptureMode.QR))
+                            nav.navigate(Routes.capture())
                         is WebViewBridge.Command.StartCollection ->
                             nav.navigate(Routes.collection(cmd.shipmentId))
                     }

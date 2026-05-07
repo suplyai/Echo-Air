@@ -65,11 +65,8 @@ class CaptureViewModel @Inject constructor(
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
 
-    fun identify(imageDataUrl: String) {
-        runIdentify { repo.identifyFromImage(imageDataUrl) }
-    }
-
-    /** Manual-entry counterpart to [identify]: the user typed an AWB instead of photographing one. */
+    /** Manual-entry counterpart to the QR path: the user typed an AWB
+     *  instead of scanning one. */
     fun identifyByAwb(awbNumber: String) {
         val clean = awbNumber.trim()
         if (clean.isBlank()) return

@@ -4,15 +4,8 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
-import androidx.camera.core.ImageCaptureException
-import androidx.camera.core.ImageProxy
-import androidx.camera.lifecycle.ProcessCameraProvider
-import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
@@ -21,26 +14,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import app.suply.echoair.R
-import app.suply.echoair.data.api.ShipmentDto
-import java.util.concurrent.Executors
 
-/** Which sub-view the Capture screen opens straight into. Each of the two
- *  home-screen CTAs picks exactly one of these; there is no in-camera mode
- *  toggle — the user already told us what they want before the camera even
- *  turned on. */
-enum class CaptureMode { DOCUMENT, QR }
-
+/**
+ * QR-code-only capture screen. Earlier iterations also offered a
+ * vision-AI document scan path (CaptureMode.DOCUMENT, removed in
+ * v0.6.1) — we ship QR-only because the manual AWB entry flow plus
+ * QR scan covers every legitimate consignee path, and the vision
+ * path was never used in production.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CaptureScreen(
-    mode: CaptureMode,
     onCancel: () -> Unit,
     onShipmentReady: (shipmentId: String) -> Unit,
     vm: CaptureViewModel = hiltViewModel()
@@ -61,14 +50,7 @@ fun CaptureScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = {
-                    Text(
-                        stringResource(
-                            if (mode == CaptureMode.DOCUMENT) R.string.capture_title_document
-                            else R.string.capture_title_qr
-                        )
-                    )
-                },
+                title = { Text(stringResource(R.string.capture_title_qr)) },
                 navigationIcon = {
                     IconButton(onClick = onCancel) { Icon(Icons.Default.Close, contentDescription = null) }
                 }
@@ -85,14 +67,9 @@ fun CaptureScreen(
                     onRequest = { permLauncher.launch(Manifest.permission.CAMERA) }
                 )
             } else {
-                when (mode) {
-                    CaptureMode.DOCUMENT -> DocumentCaptureView(
-                        onCaptured = { dataUrl -> vm.identify(dataUrl) }
-                    )
-                    CaptureMode.QR -> QrCaptureView(
-                        onScanned = { payload -> vm.onQrPayload(payload) }
-                    )
-                }
+                QrCaptureView(
+                    onScanned = { payload -> vm.onQrPayload(payload) }
+                )
 
                 if (state.loading) {
                     Box(
@@ -194,62 +171,5 @@ private fun PermissionGate(onRequest: () -> Unit) {
         Text(stringResource(R.string.permission_camera_rationale))
         Spacer(Modifier.height(16.dp))
         Button(onClick = onRequest) { Text(stringResource(R.string.capture_permission_grant)) }
-    }
-}
-
-@Composable
-private fun DocumentCaptureView(onCaptured: (String) -> Unit) {
-    val context = LocalContext.current
-    val lifecycle = LocalLifecycleOwner.current
-    val executor = remember { Executors.newSingleThreadExecutor() }
-    val imageCapture = remember { ImageCapture.Builder().setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY).build() }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { ctx ->
-                val preview = PreviewView(ctx)
-                val providerFuture = ProcessCameraProvider.getInstance(ctx)
-                providerFuture.addListener({
-                    val provider = providerFuture.get()
-                    val previewUse = androidx.camera.core.Preview.Builder().build().apply {
-                        setSurfaceProvider(preview.surfaceProvider)
-                    }
-                    provider.unbindAll()
-                    provider.bindToLifecycle(lifecycle, CameraSelector.DEFAULT_BACK_CAMERA, previewUse, imageCapture)
-                }, ContextCompat.getMainExecutor(ctx))
-                preview
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // Capture guide + button
-        Box(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .padding(48.dp)
-                .height(260.dp)
-                .background(Color.Transparent, RoundedCornerShape(12.dp))
-        )
-
-        FloatingActionButton(
-            onClick = {
-                imageCapture.takePicture(executor, object : ImageCapture.OnImageCapturedCallback() {
-                    override fun onCaptureSuccess(image: ImageProxy) {
-                        val dataUrl = ImageEncoder.toDataUrl(image)
-                        image.close()
-                        onCaptured(dataUrl)
-                    }
-                    override fun onError(exception: ImageCaptureException) {
-                        exception.printStackTrace()
-                    }
-                })
-            },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 96.dp)
-        ) {
-            Text(stringResource(R.string.capture_document_button))
-        }
     }
 }

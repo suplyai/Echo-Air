@@ -45,7 +45,6 @@
     <string name="home_hero_image_description">A warehouse operator standing in front of air cargo containers, holding a phone.</string>
     <!-- Accessibility label for the language pill chip in the top-right. -->
     <string name="home_language_selector_label">Change language</string>
-    <string name="home_debug_scan_document">[debug] Scan document (OCR)</string>
 
     <!-- ============ Settings ============ -->
     <string name="settings_title">Settings</string>
@@ -65,10 +64,8 @@
     <string name="language_first_launch_yes">Yes, continue</string>
     <string name="language_first_launch_change">Change language</string>
 
-    <!-- ============ Capture (QR + document debug) ============ -->
+    <!-- ============ Capture (QR) ============ -->
     <string name="capture_title_qr">Scan device QR</string>
-    <string name="capture_title_document">Scan document</string>
-    <string name="capture_document_button">Capture</string>
     <string name="capture_permission_grant">Grant camera permission</string>
 
     <!-- ============ Manual AWB entry ============ -->

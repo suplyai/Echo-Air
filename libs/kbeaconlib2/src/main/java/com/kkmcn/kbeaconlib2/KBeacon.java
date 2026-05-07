@@ -237,18 +237,6 @@ public class KBeacon implements KBAuthHandler.KBAuthDelegate{
         mAdvPacketMgr.setAdvTypeFilter(nAdvTypeFilter);
     }
 
-    /**
-     * Negotiated GATT MTU after connect, or null if not yet established.
-     * Echo Air added this getter (v0.5.4) so the app can record the
-     * actual MTU the phone+device pair settled on for diagnostic logs;
-     * the library requests {@code MAX_MTU_SIZE = 251} internally but
-     * the OS may negotiate down on some hardware. No behavioural change.
-     */
-    public Integer getNegotiatedMtu()
-    {
-        return mAuthHandler == null ? null : mAuthHandler.getMtuSize();
-    }
-
     public void attach2Device(BluetoothDevice bleDevice)
     {
         mBleDevice = bleDevice;
