@@ -103,14 +103,18 @@ fun HomeScreen(
                 contentDescription = stringResource(R.string.home_hero_image_description)
             )
 
+            // Two-paragraph intro. Same typography on both lines per the
+            // v0.7.1 copy update — the first paragraph is no longer a
+            // headline, it's instructional. Standard 8 dp paragraph gap
+            // matches the rest of the column's vertical rhythm.
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    stringResource(R.string.home_headline),
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.SemiBold
+                    stringResource(R.string.home_intro_primary),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
-                    stringResource(R.string.home_value_proposition),
+                    stringResource(R.string.home_intro_positioning),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

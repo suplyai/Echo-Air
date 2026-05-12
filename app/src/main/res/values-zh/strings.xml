@@ -6,8 +6,8 @@
 <resources>
     <string name="app_name">Echo Air</string>
 
-    <string name="home_headline">在运输过程中的任何环节确认冷链完整性。</string>
-    <string name="home_value_proposition">输入您的航空运单号或扫描货物上任意二维码 — 我们将自动查找所有设备。</string>
+    <string name="home_intro_primary">输入空运提单号或集装箱号，或扫描任意设备二维码 — 我们将自动识别并连接货运中的所有设备。</string>
+    <string name="home_intro_positioning">请靠近设备所在的货物、集装箱门口，或ULD或托盘旁边。</string>
     <string name="home_action_awb_title">输入航空运单号</string>
     <string name="home_action_awb_subtitle">在货物文件或标签上</string>
     <string name="home_enter_container_number">输入集装箱号</string>

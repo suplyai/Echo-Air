@@ -21,11 +21,13 @@
     <!-- Headline: establishes that Echo Air works at any moment on the
          supply chain — origin, hub, in-transit handoff, arrival, audit.
          Not just an arrival-scan app. -->
-    <string name="home_headline">Confirm cold chain integrity, anywhere on the journey.</string>
-    <!-- The magic line. Highest-leverage 14 words in the whole app —
-         compresses Echo Air's central differentiator (one AWB → all
-         devices found automatically). Translate carefully. -->
-    <string name="home_value_proposition">Enter your air waybill or scan any QR code on the shipment — we\'ll find every device automatically.</string>
+    <!-- Home intro. Two paragraphs sitting above the action cards.
+         [primary] tells the user what kind of identifier to provide
+         (AWB / container / QR) and what'll happen when they do.
+         [positioning] is operational: where to physically stand for
+         the BLE scan to work. -->
+    <string name="home_intro_primary">Enter an air waybill or container number, or scan any device QR code — we\'ll automatically identify and connect all devices in the shipment.</string>
+    <string name="home_intro_positioning">Stand close to the cargo where the device is attached, at the container door, or beside the ULD or pallets.</string>
     <!-- Primary action card. AWB entry is the primary path because most
          users have the AWB number from shipping documents before they
          reach the cargo. -->

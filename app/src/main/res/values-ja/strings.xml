@@ -6,8 +6,8 @@
 <resources>
     <string name="app_name">Echo Air</string>
 
-    <string name="home_headline">輸送中のあらゆる地点でコールドチェーンの完全性を確認。</string>
-    <string name="home_value_proposition">航空運送状を入力するか、貨物の任意のQRコードをスキャンしてください — すべてのデバイスを自動的に検出します。</string>
+    <string name="home_intro_primary">航空運送状番号またはコンテナ番号を入力するか、デバイスのQRコードをスキャンしてください — 出荷内のすべてのデバイスを自動的に識別して接続します。</string>
+    <string name="home_intro_positioning">デバイスが取り付けられている貨物、コンテナのドア、またはULDやパレットの近くに立ってください。</string>
     <string name="home_action_awb_title">航空運送状番号を入力</string>
     <string name="home_action_awb_subtitle">貨物書類またはラベルに記載</string>
     <string name="home_enter_container_number">コンテナ番号を入力</string>

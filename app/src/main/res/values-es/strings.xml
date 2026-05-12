@@ -8,8 +8,8 @@
 <resources>
     <string name="app_name">Echo Air</string>
 
-    <string name="home_headline">Confirme la integridad de la cadena de frío, en cualquier punto del trayecto.</string>
-    <string name="home_value_proposition">Ingrese su guía aérea o escanee cualquier código QR del envío — encontraremos todos los dispositivos automáticamente.</string>
+    <string name="home_intro_primary">Introduce un número de guía aérea o de contenedor, o escanea el código QR de cualquier dispositivo — identificaremos y conectaremos automáticamente todos los dispositivos del envío.</string>
+    <string name="home_intro_positioning">Mantente cerca de la carga donde está colocado el dispositivo, en la puerta del contenedor, o junto al ULD o los palés.</string>
     <string name="home_action_awb_title">Ingrese el número de su guía aérea</string>
     <string name="home_action_awb_subtitle">En la documentación o etiqueta del envío</string>
     <string name="home_enter_container_number">Ingrese su número de contenedor</string>
