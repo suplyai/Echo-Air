@@ -145,6 +145,211 @@ focused commit. Estimating roughly 2–4 days each on a focused track,
 
 ---
 
+## Phase 3 requirements — synced from Android (2026-05)
+
+**Read this before starting Phase 3 (Static UI + DTOs + networking)
+from §2.** It captures changes shipped on Android *after* this
+handoff was first written — primarily ocean-freight support and the
+home-screen copy that emerged from real pilot feedback. They are
+listed here, not retrofitted later, because retrofitting these into
+already-built iOS screens would be expensive.
+
+Anchor moved: Android `suplyai/echo-air` is now at **v0.7.0**
+(versionCode 47), commit on `claude/echo-air-android-build-Y372i`.
+The parity target referenced in §4 (build configuration) and the
+opening message in §10 should be bumped to v0.7.0 accordingly.
+
+### P3.1. Transport modes — both supported from day one
+
+iOS must support both `air_freight` AND `ocean_reefer` from the
+initial UI design. Do not build air-only first and bolt on ocean
+later. The DTO + screen wiring is similar enough that doing both
+at once is cheaper than re-doing the screens twice.
+
+`ShipmentDto` validator rules (mirror exactly):
+
+- Accept `transport_mode` values `"air_freight"` and `"ocean_reefer"`.
+- Treat any unrecognised value as ocean rather than throwing. The
+  Android `isOcean` computed property is: `transport_mode != "air"
+  && transport_mode != "air_freight"`. Defensive default — better
+  to render the simpler ocean layout than to crash on an unexpected
+  mode the backend introduces later.
+- Air-only fields are nullable on ocean shipments:
+  `airway_bill_number`, `air_origin_iata`, `air_dest_iata`,
+  `air_origin_city`, `air_dest_city`. Decode as `String?`.
+- New fields added to `ShipmentDto`: `container_number` (ocean
+  AWB-equivalent, top-level — NOT nested under a sub-object),
+  `pol` (port of loading, UN/LOCODE or carrier-specific code),
+  `pod` (port of discharge), `eta` (ISO-8601, ocean uses a single
+  ETA field where air uses richer schedule data).
+
+`VisionRequest` / `VisionResponse` both gain a `container_number`
+field alongside `awb_number`. Exactly one of the two should be
+populated per request.
+
+### P3.2. Three entry paths on the home screen
+
+The home screen has three action cards, in this order, each with
+a transport-mode-resonant icon. The icons must match the icon used
+on the Confirm Sheet's route display, so a user choosing "Plane"
+on home sees the same plane icon on the resulting Confirm Sheet —
+visual consistency between the entry choice and the resulting view.
+
+| # | Icon | Title | Subtitle | Endpoint |
+|---|---|---|---|---|
+| 1 | Plane (`Icons.Filled.Flight` / SF Symbol `airplane`) | "Enter your air waybill number" | "On the cargo paperwork or label" | `POST /api/vision/identify-shipment` with `{ "awb_number": "…" }` |
+| 2 | Ship (`Icons.Filled.DirectionsBoat` / SF Symbol `ferry` or `ship`) | "Enter your container number" | "From the paperwork or on the container itself" | `POST /api/vision/identify-shipment` with `{ "container_number": "…" }` |
+| 3 | QR (existing `QrCodeScanner` / SF Symbol `qrcode.viewfinder`) | "Scan QR code of device" | *(no subtitle — single-line label)* | `GET /api/devices/lookup?identifier={id}&include_shipment=true` |
+
+All three endpoints return the same `ShipmentDto` shape. The
+Confirm Sheet that follows the entry decides air vs ocean
+rendering by `shipment.isOcean` — the entry path itself doesn't
+need to carry the mode forward.
+
+The QR card is intentionally subtitle-less; the title is
+self-explanatory and keeps the three-card stack visually
+balanced.
+
+### P3.3. ISO 6346 container number validation
+
+Two-stage client-side validation, gates the Submit button:
+
+1. **Format** check: `^[A-Z]{4}\d{7}$` after canonicalising the
+   input (strip whitespace + hyphens, uppercase).
+2. **Check digit** check: ISO 6346 mod-11 algorithm.
+
+Each stage has its own inline error message — a check-digit
+failure (one wrong character in an otherwise valid container
+number) reads differently from a format failure ("this isn't even
+a container number"). The check-digit error case is the one users
+actually hit, and the validator surfaces the expected digit so
+they can fix the typo.
+
+Algorithm (verified against ISO 6346 and the canonical spec
+example `EITU3171741`):
+
+- Each character maps to a numeric value. Digits → themselves.
+  Letters start at 10 and skip multiples of 11 (i.e. 11, 22, 33):
+  `A=10, B=12, C=13, D=14, E=15, F=16, G=17, H=18, I=19, J=20,
+  K=21, L=23, M=24, N=25, O=26, P=27, Q=28, R=29, S=30, T=31,
+  U=32, V=34, W=35, X=36, Y=37, Z=38`.
+- For each of the first ten characters (positions 0..9), multiply
+  its value by `2^position`.
+- Sum the ten products.
+- Check digit = `sum mod 11`, with the quirk that a result of 10
+  collapses to 0. Most generators avoid producing such numbers,
+  but a few legit ones exist in the wild — we must accept them or
+  block legitimate cargo.
+
+Spec example verification: `EITU3171741`
+- `15·1 + 19·2 + 31·4 + 32·8 + 3·16 + 1·32 + 7·64 + 1·128 + 7·256 + 4·512 = 4929`
+- `4929 mod 11 = 1` → check digit `1` ✓
+
+**Production-grade reliability matters here.** A false reject
+blocks legitimate cargo from being scanned, which is worse than
+an over-permissive validator. The Android implementation is in
+`app/src/main/kotlin/app/suply/echoair/domain/Iso6346.kt` — read
+that, but on iOS prefer a Swift Package over rolling from
+scratch. Search Swift Package Index for `iso6346` or
+`container-number`; verify the letter-to-number mapping against
+an authoritative source before shipping.
+
+### P3.4. Confirm Sheet — conditional rendering by transport mode
+
+| Field | Air freight | Ocean reefer |
+|---|---|---|
+| Reference label | `confirm_label_air_waybill` | `confirm_label_container_number` |
+| Reference value | `shipment.airway_bill_number` | `shipment.container_number` |
+| Route origin | `air_origin_city (air_origin_iata)` | `pol` (bare port code) |
+| Route destination | `air_dest_city (air_dest_iata)` | `pod` (bare port code) |
+| Route icon | Plane (`airplane`) | Ship (`ferry` / `ship`) |
+| Mode badge | `confirm_badge_air_freight` | `confirm_badge_ocean_reefer` |
+| Schedule | (air schedule fields, on airway-bill object) | `eta` |
+
+Everything else on the Confirm Sheet is mode-agnostic and renders
+identically: commodity name + category accent, devices list,
+MPS rendering + unit grouping, temperature range, low-confidence
+warning, Confirm CTA. The branch is purely on the four fields
+above plus the icon + badge.
+
+### P3.5. Home screen tagline copy
+
+Two paragraphs above the entry cards, same typography on both,
+small vertical gap between them (the existing column rhythm —
+8 pt on Android). No headline — the first paragraph is no longer
+a punchy headline, it's instructional.
+
+1. *"Enter an air waybill or container number, or scan any device
+   QR code — we'll automatically identify and connect all devices
+   in the shipment."*
+2. *"Stand close to the cargo where the device is attached, at
+   the container door, or beside the ULD or pallets."*
+
+The second paragraph is operational guidance (where to physically
+stand for BLE scan to work) — not present in earlier home copy.
+
+### P3.6. Localisation — translations are already shipped on Android
+
+When Phase 3 begins, pull the verified translations from the
+Android `app/src/main/res/values{,-es,-zh,-ja}/strings.xml` and
+copy them into `Localizable.xcstrings`. **The Android translations
+are the canonical source** — they've been reviewed and shipped to
+production, in pilot use, and follow the industry-vocabulary
+discipline noted in §3.4 (which will renumber).
+
+iOS key names should mirror the Android keys for traceability.
+Specific new/updated keys introduced for Phase 3 ocean support
+(see Android repo for the full localised values):
+
+| Android key | English value |
+|---|---|
+| `home_scan_qr_button` | Scan QR code of device |
+| `home_action_awb_title` | Enter your air waybill number |
+| `home_action_awb_subtitle` | On the cargo paperwork or label |
+| `home_enter_container_number` | Enter your container number |
+| `home_enter_container_number_help` | From the paperwork or on the container itself |
+| `home_intro_primary` | Enter an air waybill or container number, or scan any device QR code — we'll automatically identify and connect all devices in the shipment. |
+| `home_intro_positioning` | Stand close to the cargo where the device is attached, at the container door, or beside the ULD or pallets. |
+| `container_entry_title` | Enter container number |
+| `container_entry_heading` | Enter the 11-character container number |
+| `container_entry_subheading` | 4-letter owner code, 6-digit serial, 1-digit check. |
+| `container_entry_placeholder` | ABCDU1234567 |
+| `container_entry_validation_format` | Container numbers are 4 letters followed by 7 digits. |
+| `container_entry_validation_checkdigit` | Check digit doesn't match — double-check the last digit. |
+| `container_entry_validation_checkdigit_expected` | Check digit doesn't match — double-check the last digit (expected %1$d). |
+| `confirm_label_container_number` | Container Number |
+| `confirm_badge_ocean_reefer` | Ocean reefer |
+| `failure_no_shipment_for_container_title` | No active shipment found |
+| `failure_no_shipment_for_container_body` | No active shipment was found for container %1$s. Double-check the number, or if the shipment has already been completed, contact your shipper. |
+
+Removed on Android (do not port to iOS): `home_headline`,
+`home_value_proposition`, `home_action_qr_title`,
+`home_action_qr_subtitle` — replaced by the keys above.
+
+### P3.7. Cache schema — add ocean fields
+
+`CachedShipment` (§3.11 of this doc, soon to be renumbered) gains:
+
+- `awbNumber: String?` — was non-null, now nullable
+- `containerNumber: String?` — new
+- `transportMode: String?` — new
+
+Android bumped Room v3 → v4 and used destructive fallback (cache
+rebuilds on upgrade, acceptable because shipments are re-fetched
+from the API on every lookup). iOS persistence layer (whatever is
+chosen — see §11 open decisions) should plan for the same shape.
+
+### P3.8. QR scan path — ocean handling is automatic
+
+The existing QR scan path needs no behavioural change for ocean:
+when a device QR resolves to a shipment whose `transport_mode` is
+`ocean_reefer`, the Confirm Sheet renders the ocean layout
+automatically because it branches on `shipment.isOcean`. The QR
+path doesn't need to know what mode the resulting shipment is —
+the data carries the mode forward.
+
+---
+
 ## 3. Invariants the iOS port MUST preserve
 
 These are the things where "subtly different on iOS" would create
