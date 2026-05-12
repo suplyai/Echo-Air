@@ -10,7 +10,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DirectionsBoat
+import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.*
@@ -67,7 +68,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun HomeScreen(
     onScanQr: () -> Unit,
-    onEnterAwb: () -> Unit
+    onEnterAwb: () -> Unit,
+    onEnterContainer: () -> Unit
 ) {
     var showLanguageSheet by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -115,16 +117,27 @@ fun HomeScreen(
             }
 
             ActionCard(
-                icon = Icons.Default.Description,
+                icon = Icons.Filled.Flight,
                 title = stringResource(R.string.home_action_awb_title),
                 subtitle = stringResource(R.string.home_action_awb_subtitle),
                 onClick = onEnterAwb,
                 primary = true
             )
             ActionCard(
+                icon = Icons.Filled.DirectionsBoat,
+                title = stringResource(R.string.home_enter_container_number),
+                subtitle = stringResource(R.string.home_enter_container_number_help),
+                onClick = onEnterContainer,
+                primary = false
+            )
+            // QR is the third option — no subtitle: the single-line CTA
+            // ("Scan QR code of device") is self-explanatory and keeps the
+            // three-card stack visually balanced (two stacked text rows
+            // would oversell what is just a fast-path).
+            ActionCard(
                 icon = Icons.Default.QrCodeScanner,
-                title = stringResource(R.string.home_action_qr_title),
-                subtitle = stringResource(R.string.home_action_qr_subtitle),
+                title = stringResource(R.string.home_scan_qr_button),
+                subtitle = null,
                 onClick = onScanQr,
                 primary = false
             )
@@ -214,7 +227,7 @@ private fun AlternatingHero(reducedMotion: Boolean, contentDescription: String) 
 private fun ActionCard(
     icon: ImageVector,
     title: String,
-    subtitle: String,
+    subtitle: String?,
     onClick: () -> Unit,
     primary: Boolean
 ) {
@@ -259,11 +272,13 @@ private fun ActionCard(
                     fontWeight = FontWeight.SemiBold,
                     color = onContainer
                 )
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = onContainer.copy(alpha = 0.85f)
-                )
+                if (subtitle != null) {
+                    Text(
+                        subtitle,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = onContainer.copy(alpha = 0.85f)
+                    )
+                }
             }
         }
     }

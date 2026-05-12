@@ -31,11 +31,14 @@
          reach the cargo. -->
     <string name="home_action_awb_title">Enter your air waybill number</string>
     <string name="home_action_awb_subtitle">On the cargo paperwork or label</string>
-    <!-- Secondary action card. QR is faster if a QR is visible but
+    <!-- Ocean-reefer action card. Sits between AWB and QR — same shape
+         as the AWB card, just for the container-number path. -->
+    <string name="home_enter_container_number">Enter your container number</string>
+    <string name="home_enter_container_number_help">From the paperwork or on the container itself</string>
+    <!-- Tertiary action card. QR is faster if a QR is visible but
          doesn\'t require finding one — both paths reach the same
-         destination. -->
-    <string name="home_action_qr_title">Scan a QR code on the shipment</string>
-    <string name="home_action_qr_subtitle">On the AWB label or any device</string>
+         destination. Single-line label (no subtitle on this card). -->
+    <string name="home_scan_qr_button">Scan QR code of device</string>
     <!-- Reassurance footer addressing first-launch friction
          ("do I need to register? do I need an account?"). -->
     <string name="home_footer_no_account">No account needed. Your data is only shared with parties on this shipment.</string>
@@ -82,11 +85,23 @@
          user gets zero-latency feedback that the action registered. -->
     <string name="awb_continue_loading">Looking up shipment…</string>
 
+    <!-- ============ Manual container-number entry (ocean reefer) ============ -->
+    <string name="container_entry_title">Enter container number</string>
+    <string name="container_entry_heading">Enter the 11-character container number</string>
+    <string name="container_entry_subheading">4-letter owner code, 6-digit serial, 1-digit check.</string>
+    <string name="container_entry_placeholder">ABCDU1234567</string>
+    <string name="container_entry_validation_format">Container numbers are 4 letters followed by 7 digits.</string>
+    <string name="container_entry_validation_checkdigit">Check digit doesn\'t match — double-check the last digit.</string>
+    <!-- %1$d = expected check digit -->
+    <string name="container_entry_validation_checkdigit_expected">Check digit doesn\'t match — double-check the last digit (expected %1$d).</string>
+
     <!-- ============ Confirm Shipment sheet ============ -->
     <string name="confirm_heading_low_confidence">Double-check this is your shipment</string>
     <string name="confirm_fallback_commodity">Shipment</string>
     <string name="confirm_label_air_waybill">Air Waybill</string>
+    <string name="confirm_label_container_number">Container Number</string>
     <string name="confirm_badge_air_freight">Air freight</string>
+    <string name="confirm_badge_ocean_reefer">Ocean reefer</string>
     <string name="confirm_no_devices_expected">No devices expected</string>
     <plurals name="confirm_devices_to_collect">
         <item quantity="one">1 device to collect</item>
@@ -208,6 +223,9 @@
     <string name="failure_no_shipment_for_awb_title">No active shipment found</string>
     <!-- %1$s = AWB number, do not translate -->
     <string name="failure_no_shipment_for_awb_body">No active shipment was found for AWB %1$s. Double-check the number, or if the shipment has already been completed, contact your shipper.</string>
+    <string name="failure_no_shipment_for_container_title">No active shipment found</string>
+    <!-- %1$s = container number, do not translate -->
+    <string name="failure_no_shipment_for_container_body">No active shipment was found for container %1$s. Double-check the number, or if the shipment has already been completed, contact your shipper.</string>
     <string name="failure_no_awb_in_image_title">Couldn\'t read the AWB</string>
     <string name="failure_no_awb_in_image_body">Try another angle or better lighting, or scan the device QR code instead.</string>
     <string name="failure_device_not_registered_title">Device not registered</string>

@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DirectionsBoat
 import androidx.compose.material.icons.filled.Flight
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
@@ -115,16 +116,23 @@ fun ConfirmShipmentSheet(
 
             Divider(color = MaterialTheme.colorScheme.outlineVariant)
 
-            // AWB + transport mode badge
+            // Reference (AWB or container) + transport mode badge.
+            // Mode is decided by ShipmentDto.isOcean, which defensively
+            // treats any non-air transport_mode as ocean — see the DTO doc.
+            val isOcean = shipment.isOcean
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = stringResource(R.string.confirm_label_air_waybill),
+                        text = stringResource(
+                            if (isOcean) R.string.confirm_label_container_number
+                            else R.string.confirm_label_air_waybill
+                        ),
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    val reference = if (isOcean) shipment.containerNumber else shipment.airwayBillNumber
                     Text(
-                        text = shipment.airwayBillNumber,
+                        text = reference ?: "—",
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Medium
                     )
@@ -132,9 +140,20 @@ fun ConfirmShipmentSheet(
                 TransportModeBadge(shipment.transportMode)
             }
 
-            // Origin → Destination
-            val origin = formatEndpoint(shipment.airOriginCity, shipment.airOriginIata)
-            val dest = formatEndpoint(shipment.airDestCity, shipment.airDestIata)
+            // Origin → Destination. Air uses the city+IATA pair; ocean uses
+            // the bare port codes (POL/POD) that the backend exposes.
+            val origin: String?
+            val dest: String?
+            val routeIcon: androidx.compose.ui.graphics.vector.ImageVector
+            if (isOcean) {
+                origin = shipment.pol?.takeIf { it.isNotBlank() }
+                dest = shipment.pod?.takeIf { it.isNotBlank() }
+                routeIcon = Icons.Filled.DirectionsBoat
+            } else {
+                origin = formatEndpoint(shipment.airOriginCity, shipment.airOriginIata)
+                dest = formatEndpoint(shipment.airDestCity, shipment.airDestIata)
+                routeIcon = Icons.Filled.Flight
+            }
             if (origin != null || dest != null) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -143,7 +162,7 @@ fun ConfirmShipmentSheet(
                         modifier = Modifier.weight(1f)
                     )
                     Icon(
-                        imageVector = Icons.Filled.Flight,
+                        imageVector = routeIcon,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(20.dp)
@@ -274,6 +293,8 @@ private fun TransportModeBadge(mode: String?) {
         mode == null -> null
         mode.equals("air", ignoreCase = true) || mode.equals("air_freight", ignoreCase = true) ->
             stringResource(R.string.confirm_badge_air_freight)
+        mode.equals("ocean_reefer", ignoreCase = true) ->
+            stringResource(R.string.confirm_badge_ocean_reefer)
         else -> mode.replace('_', ' ').replaceFirstChar { it.uppercase() }
     }
     if (text == null) return

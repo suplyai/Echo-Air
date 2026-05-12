@@ -45,6 +45,11 @@ class CaptureViewModel @Inject constructor(
         data class MalformedResponse(val detail: String) : Failure
         /** Vision AI extracted an AWB but the backend has no matching shipment. */
         data class NoShipmentForAwb(val awb: String) : Failure
+        /** Manual container entry parsed cleanly but the backend has no matching
+         *  ocean shipment. Distinct from [NoShipmentForAwb] so the dialog copy
+         *  can name the right reference type — same dispatch shape, different
+         *  customer-facing words. */
+        data class NoShipmentForContainer(val containerNumber: String) : Failure
         /** Vision AI couldn't read an AWB from the image. */
         data object NoAwbInImage : Failure
         /** QR payload scanned but the backend has no record of the device (404). */
@@ -73,6 +78,14 @@ class CaptureViewModel @Inject constructor(
         runIdentify { repo.identifyFromAwb(clean) }
     }
 
+    /** Manual-entry path for ocean reefer shipments. The caller has already
+     *  canonicalised + validated the input via [app.suply.echoair.domain.Iso6346]. */
+    fun identifyByContainer(containerNumber: String) {
+        val clean = containerNumber.trim()
+        if (clean.isBlank()) return
+        runIdentify { repo.identifyFromContainer(clean) }
+    }
+
     private fun runIdentify(block: suspend () -> app.suply.echoair.data.api.VisionResponse) {
         if (_state.value.loading) return
         _state.value = State(loading = true)
@@ -81,13 +94,14 @@ class CaptureViewModel @Inject constructor(
                 val resp = block()
                 val shipment = resp.shipment
                 val awb = resp.awbNumber
+                val container = resp.containerNumber
                 _state.value = when {
                     shipment != null -> {
                         Timber.i(
-                            "Vision response: shipment=%s awb=%s devices=%d confidence=%s " +
+                            "Vision response: shipment=%s awb=%s container=%s devices=%d confidence=%s " +
                                 "commodityName=%s commodityCategory=%s originCity=%s originIata=%s " +
                                 "destCity=%s destIata=%s transportMode=%s",
-                            shipment.id, shipment.airwayBillNumber,
+                            shipment.id, shipment.airwayBillNumber, shipment.containerNumber,
                             shipment.devices.size, resp.confidence,
                             shipment.commodityName, shipment.commodityCategory,
                             shipment.airOriginCity, shipment.airOriginIata,
@@ -96,12 +110,16 @@ class CaptureViewModel @Inject constructor(
                         )
                         State(shipment = shipment, confidence = resp.confidence)
                     }
+                    container != null -> {
+                        Timber.i("Vision response: container_number=%s, shipment=null → backend has no matching ocean shipment", container)
+                        State(failure = Failure.NoShipmentForContainer(container))
+                    }
                     awb != null -> {
                         Timber.i("Vision response: awb_number=%s, shipment=null → backend says no active shipment for this AWB", awb)
                         State(failure = Failure.NoShipmentForAwb(awb))
                     }
                     else -> {
-                        Timber.i("Vision response: awb_number=null, shipment=null → no AWB readable in image")
+                        Timber.i("Vision response: awb_number=null, container_number=null, shipment=null → no readable identifier")
                         State(failure = Failure.NoAwbInImage)
                     }
                 }

@@ -143,6 +143,10 @@ internal fun failureCopy(failure: CaptureViewModel.Failure): Pair<String, String
         stringResource(R.string.failure_no_shipment_for_awb_title),
         stringResource(R.string.failure_no_shipment_for_awb_body, failure.awb)
     )
+    is CaptureViewModel.Failure.NoShipmentForContainer -> Pair(
+        stringResource(R.string.failure_no_shipment_for_container_title),
+        stringResource(R.string.failure_no_shipment_for_container_body, failure.containerNumber)
+    )
     CaptureViewModel.Failure.NoAwbInImage -> Pair(
         stringResource(R.string.failure_no_awb_in_image_title),
         stringResource(R.string.failure_no_awb_in_image_body)

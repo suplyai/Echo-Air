@@ -17,7 +17,9 @@ import androidx.room.RoomDatabase
     //     .fallbackToDestructiveMigration(), so the cache rebuilds on
     //     upgrade — acceptable because the app re-fetches shipments
     //     from the API on every lookup anyway.
-    version = 3,
+    // v4: CachedShipment.awbNumber becomes nullable; adds
+    //     containerNumber + transportMode for ocean reefer support.
+    version = 4,
     exportSchema = false
 )
 abstract class EchoAirDatabase : RoomDatabase() {

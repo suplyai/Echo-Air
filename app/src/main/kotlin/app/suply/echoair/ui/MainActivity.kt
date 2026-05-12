@@ -20,6 +20,7 @@ import androidx.navigation.compose.rememberNavController
 import app.suply.echoair.ui.awb.ManualAwbScreen
 import app.suply.echoair.ui.capture.CaptureScreen
 import app.suply.echoair.ui.collection.CollectionScreen
+import app.suply.echoair.ui.container.ManualContainerScreen
 import app.suply.echoair.ui.home.HomeScreen
 import app.suply.echoair.ui.locale.FirstLaunchLanguageGate
 import app.suply.echoair.ui.locale.LocaleManager
@@ -76,6 +77,7 @@ object Routes {
     const val HOME = "home"
     const val CAPTURE = "capture"
     const val AWB_ENTRY = "awb_entry"
+    const val CONTAINER_ENTRY = "container_entry"
     const val COLLECTION = "collection/{shipmentId}"
     const val SETTINGS = "settings"
     const val WEB = "web?path={path}&title={title}"
@@ -94,7 +96,8 @@ private fun EchoAirNavHost() {
         composable(Routes.HOME) {
             HomeScreen(
                 onScanQr = { nav.navigate(Routes.capture()) },
-                onEnterAwb = { nav.navigate(Routes.AWB_ENTRY) }
+                onEnterAwb = { nav.navigate(Routes.AWB_ENTRY) },
+                onEnterContainer = { nav.navigate(Routes.CONTAINER_ENTRY) }
             )
         }
         composable(Routes.CAPTURE) {
@@ -109,6 +112,16 @@ private fun EchoAirNavHost() {
         }
         composable(Routes.AWB_ENTRY) {
             ManualAwbScreen(
+                onBack = { nav.popBackStack() },
+                onShipmentReady = { id ->
+                    nav.navigate(Routes.collection(id)) {
+                        popUpTo(Routes.HOME)
+                    }
+                }
+            )
+        }
+        composable(Routes.CONTAINER_ENTRY) {
+            ManualContainerScreen(
                 onBack = { nav.popBackStack() },
                 onShipmentReady = { id ->
                     nav.navigate(Routes.collection(id)) {

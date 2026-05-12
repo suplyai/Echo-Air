@@ -169,7 +169,12 @@ fun CollectionScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(shipment?.awbNumber ?: stringResource(R.string.collection_title_fallback)) },
+                title = {
+                    val titleRef = shipment?.awbNumber
+                        ?: shipment?.containerNumber
+                        ?: stringResource(R.string.collection_title_fallback)
+                    Text(titleRef)
+                },
                 navigationIcon = {
                     IconButton(onClick = { confirmClose = true }) {
                         Icon(Icons.Default.Close, contentDescription = null)

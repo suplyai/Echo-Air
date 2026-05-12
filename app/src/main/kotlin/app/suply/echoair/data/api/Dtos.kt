@@ -48,7 +48,19 @@ data class CargoProfileDto(
 @Serializable
 data class ShipmentDto(
     val id: String,
-    @SerialName("airway_bill_number") val airwayBillNumber: String,
+    /**
+     * Air-freight reference. NULL on ocean shipments — see
+     * [containerNumber] for the ocean equivalent. The Confirm sheet
+     * picks the right reference field based on [transportMode].
+     */
+    @SerialName("airway_bill_number") val airwayBillNumber: String? = null,
+    /**
+     * Ocean-freight reference (ISO 6346 container number, e.g.
+     * "EITU3171741"). NULL on air shipments. Top-level on the
+     * shipment, NOT nested under a sub-object — same structural
+     * position as [airwayBillNumber].
+     */
+    @SerialName("container_number") val containerNumber: String? = null,
     @SerialName("air_origin_iata") val airOriginIata: String? = null,
     /** City name for the origin airport, e.g. "Lima" for LIM. Optional;
      *  the confirmation sheet shows code alone when the city is missing. */
@@ -56,6 +68,22 @@ data class ShipmentDto(
     @SerialName("air_dest_iata") val airDestIata: String? = null,
     /** City name for the destination airport, e.g. "Amsterdam" for AMS. */
     @SerialName("air_dest_city") val airDestCity: String? = null,
+    /** Ocean port-of-loading code (UN/LOCODE or carrier-specific port code).
+     *  Populated only when [transportMode] is "ocean_reefer". */
+    val pol: String? = null,
+    /** Ocean port-of-discharge code. Ocean only. */
+    val pod: String? = null,
+    /** Single ocean schedule field (estimated arrival). Ocean uses one
+     *  ETA field; air uses richer schedule data on the airway-bill object
+     *  not currently surfaced on the shipment lookup response. */
+    val eta: String? = null,
+    /**
+     * "air_freight" or "ocean_reefer" as of v0.7.0. The Confirm sheet
+     * branches its reference / route / icon rendering on this value.
+     * Unrecognised values are treated as ocean (defensive default —
+     * better to render the simpler ocean layout than to crash on an
+     * unexpected mode the backend introduces later).
+     */
     @SerialName("transport_mode") val transportMode: String? = null,
     val status: String,
     /**
@@ -85,7 +113,16 @@ data class ShipmentDto(
      * collection_unattributed_unit string.
      */
     val units: List<UnitDto> = emptyList()
-)
+) {
+    /** True iff this shipment is ocean reefer (or the backend reports
+     *  any non-air mode — see [transportMode] note about defensive
+     *  defaulting). The Confirm sheet uses this to pick which
+     *  reference / route / icon to render. */
+    val isOcean: Boolean
+        get() = transportMode != null &&
+            !transportMode.equals("air", ignoreCase = true) &&
+            !transportMode.equals("air_freight", ignoreCase = true)
+}
 
 /**
  * One physical pallet / ULD / lot inside a Multiple Package Shipment.
@@ -152,20 +189,30 @@ data class ShipmentListResponse(
 // ---------- Vision ----------
 
 /**
- * Identify-shipment request body. The endpoint historically also accepted
- * an `image_base64` field for the OCR fallback path, but Echo Air ships
- * AWB-only since v0.6.1 (the OCR path was removed end-to-end). Backend
- * still accepts the legacy field if other clients send it; we just don't
+ * Identify-shipment request body. As of v0.7.0 the endpoint dispatches on
+ * which identifier is present — exactly one of [awbNumber] (air freight)
+ * or [containerNumber] (ocean reefer) should be populated per request.
+ * The endpoint historically also accepted an `image_base64` field for the
+ * OCR fallback path, but Echo Air shipped that out in v0.6.1 — the legacy
+ * field is still accepted server-side for other clients but we don't
  * populate it here.
  */
 @Serializable
 data class VisionRequest(
-    @SerialName("awb_number") val awbNumber: String? = null
+    @SerialName("awb_number") val awbNumber: String? = null,
+    /** ISO 6346 container number, canonicalised to 11 uppercase characters
+     *  (4 letters + 7 digits, no whitespace or hyphens). Mutually exclusive
+     *  with [awbNumber] — see the class doc. */
+    @SerialName("container_number") val containerNumber: String? = null
 )
 
 @Serializable
 data class VisionResponse(
     @SerialName("awb_number") val awbNumber: String? = null,
+    /** Echoed back when the request specified [VisionRequest.containerNumber].
+     *  The capture VM uses whichever of the two identifier fields is non-null
+     *  to pick the right not-found Failure variant. */
+    @SerialName("container_number") val containerNumber: String? = null,
     val confidence: String? = null,          // "high" | "medium" | "low"
     val reasoning: String? = null,
     val shipment: ShipmentDto? = null

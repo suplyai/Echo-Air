@@ -10,8 +10,9 @@
     <string name="home_value_proposition">航空運送状を入力するか、貨物の任意のQRコードをスキャンしてください — すべてのデバイスを自動的に検出します。</string>
     <string name="home_action_awb_title">航空運送状番号を入力</string>
     <string name="home_action_awb_subtitle">貨物書類またはラベルに記載</string>
-    <string name="home_action_qr_title">貨物のQRコードをスキャン</string>
-    <string name="home_action_qr_subtitle">航空運送状ラベルまたは任意のデバイスに貼付</string>
+    <string name="home_enter_container_number">コンテナ番号を入力</string>
+    <string name="home_enter_container_number_help">書類またはコンテナ本体に記載</string>
+    <string name="home_scan_qr_button">デバイスのQRコードをスキャン</string>
     <string name="home_footer_no_account">アカウント不要。データはこの貨物の関係者とのみ共有されます。</string>
     <string name="home_hero_image_description">倉庫作業員が航空貨物コンテナの前でスマートフォンを持って立っています。</string>
     <string name="home_language_selector_label">言語を変更</string>
@@ -43,10 +44,20 @@
     <string name="awb_continue">続行</string>
     <string name="awb_continue_loading">貨物を検索中…</string>
 
+    <string name="container_entry_title">コンテナ番号を入力</string>
+    <string name="container_entry_heading">11 文字のコンテナ番号を入力してください</string>
+    <string name="container_entry_subheading">所有者コード 4 文字、シリアル 6 桁、チェックディジット 1 桁。</string>
+    <string name="container_entry_placeholder">ABCDU1234567</string>
+    <string name="container_entry_validation_format">コンテナ番号はアルファベット 4 文字と数字 7 桁です。</string>
+    <string name="container_entry_validation_checkdigit">チェックディジットが一致しません — 最後の桁を確認してください。</string>
+    <string name="container_entry_validation_checkdigit_expected">チェックディジットが一致しません — 最後の桁を確認してください (正しい値: %1$d)。</string>
+
     <string name="confirm_heading_low_confidence">この貨物で間違いないかご確認ください</string>
     <string name="confirm_fallback_commodity">貨物</string>
     <string name="confirm_label_air_waybill">航空運送状 (AWB)</string>
+    <string name="confirm_label_container_number">コンテナ番号</string>
     <string name="confirm_badge_air_freight">航空貨物</string>
+    <string name="confirm_badge_ocean_reefer">海上冷蔵</string>
     <string name="confirm_no_devices_expected">収集対象のデバイスはありません</string>
     <plurals name="confirm_devices_to_collect">
         <item quantity="other">収集対象 %1$d 台</item>
@@ -119,6 +130,8 @@
     <string name="failure_malformed_body">サーバーの応答形式をアプリが認識できません — 通常はバックエンドが更新されたがアプリが追従していないことを意味します。荷送人にデプロイの確認を依頼してください。</string>
     <string name="failure_no_shipment_for_awb_title">進行中の貨物が見つかりません</string>
     <string name="failure_no_shipment_for_awb_body">AWB %1$s に対応する進行中の貨物が見つかりません。番号を再確認してください。すでに完了している場合は荷送人にご連絡ください。</string>
+    <string name="failure_no_shipment_for_container_title">進行中の貨物が見つかりません</string>
+    <string name="failure_no_shipment_for_container_body">コンテナ %1$s に対応する進行中の貨物が見つかりません。番号を再確認してください。すでに完了している場合は荷送人にご連絡ください。</string>
     <string name="failure_no_awb_in_image_title">AWB を読み取れませんでした</string>
     <string name="failure_no_awb_in_image_body">角度や照明を変えて再試行するか、デバイスの QR コードをスキャンしてください。</string>
     <string name="failure_device_not_registered_title">デバイスが未登録です</string>

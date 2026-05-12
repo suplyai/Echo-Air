@@ -10,8 +10,9 @@
     <string name="home_value_proposition">输入您的航空运单号或扫描货物上任意二维码 — 我们将自动查找所有设备。</string>
     <string name="home_action_awb_title">输入航空运单号</string>
     <string name="home_action_awb_subtitle">在货物文件或标签上</string>
-    <string name="home_action_qr_title">扫描货物上的二维码</string>
-    <string name="home_action_qr_subtitle">在航空运单标签或任意设备上</string>
+    <string name="home_enter_container_number">输入集装箱号</string>
+    <string name="home_enter_container_number_help">在文件或集装箱本体上</string>
+    <string name="home_scan_qr_button">扫描设备二维码</string>
     <string name="home_footer_no_account">无需账户。您的数据仅与本次货运的相关方共享。</string>
     <string name="home_hero_image_description">一名仓库操作员手持手机站在航空货运集装箱前。</string>
     <string name="home_language_selector_label">切换语言</string>
@@ -43,10 +44,20 @@
     <string name="awb_continue">继续</string>
     <string name="awb_continue_loading">正在查找货运…</string>
 
+    <string name="container_entry_title">输入集装箱号</string>
+    <string name="container_entry_heading">请输入 11 位集装箱号</string>
+    <string name="container_entry_subheading">4 位所有者代码,6 位序列号,1 位校验码。</string>
+    <string name="container_entry_placeholder">ABCDU1234567</string>
+    <string name="container_entry_validation_format">集装箱号为 4 个字母后跟 7 位数字。</string>
+    <string name="container_entry_validation_checkdigit">校验位不匹配 — 请核对最后一位。</string>
+    <string name="container_entry_validation_checkdigit_expected">校验位不匹配 — 请核对最后一位 (应为 %1$d)。</string>
+
     <string name="confirm_heading_low_confidence">请确认这是您的货运</string>
     <string name="confirm_fallback_commodity">货运</string>
     <string name="confirm_label_air_waybill">航空运单 (AWB)</string>
+    <string name="confirm_label_container_number">集装箱号</string>
     <string name="confirm_badge_air_freight">空运</string>
+    <string name="confirm_badge_ocean_reefer">海运冷藏</string>
     <string name="confirm_no_devices_expected">无需收集设备</string>
     <plurals name="confirm_devices_to_collect">
         <item quantity="other">需要收集 %1$d 个设备</item>
@@ -119,6 +130,8 @@
     <string name="failure_malformed_body">服务器返回的数据格式应用无法识别 — 通常意味着后端已更新但应用尚未同步。请联系发货人检查部署。</string>
     <string name="failure_no_shipment_for_awb_title">未找到进行中的货运</string>
     <string name="failure_no_shipment_for_awb_body">未找到对应 AWB %1$s 的进行中货运。请核对运单号;如果货运已完成,请联系发货人。</string>
+    <string name="failure_no_shipment_for_container_title">未找到进行中的货运</string>
+    <string name="failure_no_shipment_for_container_body">未找到对应集装箱 %1$s 的进行中货运。请核对箱号;如果货运已完成,请联系发货人。</string>
     <string name="failure_no_awb_in_image_title">无法识别 AWB</string>
     <string name="failure_no_awb_in_image_body">请换一个角度或改善光线,或改为扫描设备二维码。</string>
     <string name="failure_device_not_registered_title">设备未注册</string>

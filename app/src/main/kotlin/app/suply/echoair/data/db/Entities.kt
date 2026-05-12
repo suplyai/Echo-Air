@@ -7,7 +7,10 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "shipments")
 data class CachedShipment(
     @PrimaryKey val id: String,
-    val awbNumber: String,
+    /** Air-freight reference. Nullable as of v0.7.0 because ocean reefer
+     *  shipments use [containerNumber] instead. The collection title bar
+     *  picks the populated identifier based on [transportMode]. */
+    val awbNumber: String?,
     val originIata: String?,
     val destIata: String?,
     // City names for the origin/destination airports. Optional; when
@@ -16,6 +19,13 @@ data class CachedShipment(
     // air_origin_city / air_dest_city on ShipmentDto.
     val originCity: String?,
     val destCity: String?,
+    /** Ocean-freight reference (ISO 6346 container number). Mutually
+     *  exclusive with [awbNumber] in practice — see [transportMode]. */
+    val containerNumber: String?,
+    /** "air_freight" or "ocean_reefer" as of v0.7.0. Null on cached rows
+     *  written before the schema bump (those upgrade via destructive
+     *  fallback, so the field is effectively always populated). */
+    val transportMode: String?,
     val commodityName: String?,
     val commodityMinTemp: Double?,
     val commodityMaxTemp: Double?,

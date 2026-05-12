@@ -97,6 +97,21 @@ class ShipmentRepository @Inject constructor(
         return resp
     }
 
+    /**
+     * Manual-entry path for the ocean reefer "Enter container number"
+     * card on Home. Same endpoint and response shape as [identifyFromAwb];
+     * the dispatch on which not-found copy to show happens in the VM
+     * by inspecting which identifier the response echoes back.
+     *
+     * Caller is responsible for canonicalising and validating the input
+     * (see [app.suply.echoair.domain.Iso6346]) before calling this.
+     */
+    suspend fun identifyFromContainer(containerNumber: String): VisionResponse {
+        val resp = api.identifyShipment(VisionRequest(containerNumber = containerNumber.trim()))
+        resp.shipment?.let { cache(it) }
+        return resp
+    }
+
     suspend fun searchByAwb(query: String): List<ShipmentDto> {
         val resp = api.listShipments(status = "in_transit", search = query)
         resp.shipments.forEach { cache(it) }
@@ -190,6 +205,8 @@ class ShipmentRepository @Inject constructor(
                 destIata = s.airDestIata,
                 originCity = s.airOriginCity,
                 destCity = s.airDestCity,
+                containerNumber = s.containerNumber,
+                transportMode = s.transportMode,
                 commodityName = s.cargoProfile?.name,
                 commodityMinTemp = s.cargoProfile?.minTemp,
                 commodityMaxTemp = s.cargoProfile?.maxTemp,

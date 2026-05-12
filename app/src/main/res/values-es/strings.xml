@@ -12,8 +12,9 @@
     <string name="home_value_proposition">Ingrese su guía aérea o escanee cualquier código QR del envío — encontraremos todos los dispositivos automáticamente.</string>
     <string name="home_action_awb_title">Ingrese el número de su guía aérea</string>
     <string name="home_action_awb_subtitle">En la documentación o etiqueta del envío</string>
-    <string name="home_action_qr_title">Escanee un código QR del envío</string>
-    <string name="home_action_qr_subtitle">En la etiqueta de la guía aérea o en cualquier dispositivo</string>
+    <string name="home_enter_container_number">Ingrese su número de contenedor</string>
+    <string name="home_enter_container_number_help">En la documentación o en el contenedor mismo</string>
+    <string name="home_scan_qr_button">Escanear código QR del dispositivo</string>
     <string name="home_footer_no_account">No se necesita cuenta. Sus datos solo se comparten con las partes de este envío.</string>
     <string name="home_hero_image_description">Un operador de almacén frente a contenedores de carga aérea, con un teléfono en la mano.</string>
     <string name="home_language_selector_label">Cambiar idioma</string>
@@ -45,10 +46,20 @@
     <string name="awb_continue">Continuar</string>
     <string name="awb_continue_loading">Buscando envío…</string>
 
+    <string name="container_entry_title">Ingresar contenedor</string>
+    <string name="container_entry_heading">Ingresa el número de contenedor de 11 caracteres</string>
+    <string name="container_entry_subheading">Código de propietario de 4 letras, serie de 6 dígitos, dígito de control.</string>
+    <string name="container_entry_placeholder">ABCDU1234567</string>
+    <string name="container_entry_validation_format">Los números de contenedor son 4 letras seguidas de 7 dígitos.</string>
+    <string name="container_entry_validation_checkdigit">El dígito de control no coincide — revisa el último dígito.</string>
+    <string name="container_entry_validation_checkdigit_expected">El dígito de control no coincide — revisa el último dígito (se esperaba %1$d).</string>
+
     <string name="confirm_heading_low_confidence">Verifica que este sea tu envío</string>
     <string name="confirm_fallback_commodity">Envío</string>
     <string name="confirm_label_air_waybill">Guía Aérea (AWB)</string>
+    <string name="confirm_label_container_number">Número de contenedor</string>
     <string name="confirm_badge_air_freight">Carga aérea</string>
+    <string name="confirm_badge_ocean_reefer">Reefer marítimo</string>
     <string name="confirm_no_devices_expected">Sin dispositivos esperados</string>
     <plurals name="confirm_devices_to_collect">
         <item quantity="one">1 dispositivo por recolectar</item>
@@ -125,6 +136,8 @@
     <string name="failure_malformed_body">El servidor respondió con un formato que la app no reconoce — normalmente significa que el backend se actualizó sin que la app se actualizara también. Pide a tu embarcador que revise el despliegue.</string>
     <string name="failure_no_shipment_for_awb_title">No se encontró un envío activo</string>
     <string name="failure_no_shipment_for_awb_body">No se encontró un envío activo para el AWB %1$s. Verifica el número; si el envío ya se completó, contacta a tu embarcador.</string>
+    <string name="failure_no_shipment_for_container_title">No se encontró un envío activo</string>
+    <string name="failure_no_shipment_for_container_body">No se encontró un envío activo para el contenedor %1$s. Verifica el número; si el envío ya se completó, contacta a tu embarcador.</string>
     <string name="failure_no_awb_in_image_title">No se pudo leer el AWB</string>
     <string name="failure_no_awb_in_image_body">Prueba con otro ángulo o mejor iluminación, o escanea el QR del dispositivo.</string>
     <string name="failure_device_not_registered_title">Dispositivo no registrado</string>
