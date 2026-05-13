@@ -9,13 +9,13 @@ plugins {
 
 android {
     namespace = "app.suply.echoair"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "app.suply.echoair"
         minSdk = 30
-        targetSdk = 35
-        versionCode = 52
+        targetSdk = 36
+        versionCode = 53
         versionName = "1.7.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -31,6 +31,10 @@ android {
             "WEB_BASE_URL",
             "\"${(project.findProperty("ECHO_AIR_WEB_BASE_URL") as String?) ?: "https://app.suply.app/"}\""
         )
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
+        }
     }
 
     buildTypes {
@@ -54,8 +58,14 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+    kotlin {
+        compilerOptions {
+            jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        }
     }
 
     buildFeatures {
@@ -67,19 +77,25 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
             excludes += "/META-INF/DEPENDENCIES"
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+
+        jniLibs {
+            useLegacyPackaging = false  // ← Add this
         }
     }
 
+
     // Per-ABI splits keep each APK small enough to be manageable — the ML Kit
     // barhopper native lib alone is ~5 MB per ABI, 21 MB across all four.
-    splits {
-        abi {
-            isEnable = true
-            reset()
-            include("arm64-v8a", "armeabi-v7a")
-            isUniversalApk = false
-        }
-    }
+//    splits {
+//        abi {
+//            isEnable = true
+//            reset()
+//            include("arm64-v8a", "armeabi-v7a")
+//            isUniversalApk = false
+//        }
+//    }
 }
 
 dependencies {
