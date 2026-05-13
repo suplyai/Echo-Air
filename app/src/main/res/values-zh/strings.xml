@@ -4,7 +4,7 @@
   行业惯例: 航空运单全称用于正式标签,正文中也可使用 AWB 缩写。
 -->
 <resources>
-    <string name="app_name">Echo Air</string>
+    <string name="app_name">Suply ECHO</string>
 
     <string name="home_intro_primary">输入空运提单号或集装箱号，或扫描任意设备二维码 — 我们将自动识别并连接货运中的所有设备。</string>
     <string name="home_intro_positioning">请靠近设备所在的货物、集装箱门口，或ULD或托盘旁边。</string>

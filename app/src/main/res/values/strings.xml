@@ -15,7 +15,7 @@
           dBm), brand ("Echo Air", "Suply").
     -->
 
-    <string name="app_name">Echo Air</string>
+    <string name="app_name">Suply ECHO</string>
 
     <!-- ============ Home (guided landing page) ============ -->
     <!-- Headline: establishes that Echo Air works at any moment on the

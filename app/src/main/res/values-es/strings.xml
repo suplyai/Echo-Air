@@ -6,7 +6,7 @@
   / "Agente de carga" per freight forwarder usage in PE/CO/EC/CL.
 -->
 <resources>
-    <string name="app_name">Echo Air</string>
+    <string name="app_name">Suply ECHO</string>
 
     <string name="home_intro_primary">Introduce un número de guía aérea o de contenedor, o escanea el código QR de cualquier dispositivo — identificaremos y conectaremos automáticamente todos los dispositivos del envío.</string>
     <string name="home_intro_positioning">Mantente cerca de la carga donde está colocado el dispositivo, en la puerta del contenedor, o junto al ULD o los palés.</string>

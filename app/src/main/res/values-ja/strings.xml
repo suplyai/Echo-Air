@@ -4,7 +4,7 @@
   業界慣例: 正式表記は「航空運送状」、本文では AWB 略語を使用。
 -->
 <resources>
-    <string name="app_name">Echo Air</string>
+    <string name="app_name">Suply ECHO</string>
 
     <string name="home_intro_primary">航空運送状番号またはコンテナ番号を入力するか、デバイスのQRコードをスキャンしてください — 出荷内のすべてのデバイスを自動的に識別して接続します。</string>
     <string name="home_intro_positioning">デバイスが取り付けられている貨物、コンテナのドア、またはULDやパレットの近くに立ってください。</string>
