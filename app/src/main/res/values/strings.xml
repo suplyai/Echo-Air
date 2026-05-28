@@ -250,6 +250,18 @@
     <string name="notif_collection_title">Collecting shipment</string>
     <string name="notif_collection_body">Collecting shipment data</string>
 
+    <!-- ============ Side-load update prompt ============ -->
+    <!-- Shown once per cold launch (and only when the suply.ai latest-version
+         endpoint reports a newer versionCode). Dismissible. Side-loaded users
+         in regions without Play Store rely on this nudge to refresh. -->
+    <string name="update_dialog_title">Update available</string>
+    <!-- %1$s = new versionName, e.g. "1.8.0" -->
+    <string name="update_dialog_body">Echo Air %1$s is available. Download it to get the latest features and fixes.</string>
+    <!-- %1$s = new versionName, %2$s = release-notes line from the remote JSON -->
+    <string name="update_dialog_body_with_notes">Echo Air %1$s is available.\n\n%2$s</string>
+    <string name="update_dialog_download">Download</string>
+    <string name="update_dialog_later">Later</string>
+
     <!-- ============ Debug / spike ============ -->
     <string name="spike_title">kbeaconlib2 spike</string>
     <string name="spike_field_mac_label">Device MAC (BC:57:29:1C:D6:A6)</string>

@@ -162,4 +162,9 @@
     <string name="spike_field_password_label">Contraseña</string>
     <string name="spike_run">Ejecutar spike</string>
     <string name="spike_log_output">Registro</string>
+    <string name="update_dialog_title">Actualización disponible</string>
+    <string name="update_dialog_body">Echo Air %1$s está disponible. Descárgala para obtener las últimas funciones y correcciones.</string>
+    <string name="update_dialog_body_with_notes">Echo Air %1$s está disponible.\n\n%2$s</string>
+    <string name="update_dialog_download">Descargar</string>
+    <string name="update_dialog_later">Más tarde</string>
 </resources>

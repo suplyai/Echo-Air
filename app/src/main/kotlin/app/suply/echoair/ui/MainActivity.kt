@@ -28,6 +28,7 @@ import app.suply.echoair.ui.locale.wrapForLocale
 import app.suply.echoair.ui.settings.SettingsScreen
 import app.suply.echoair.ui.web.WebScreen
 import app.suply.echoair.ui.web.WebViewBridge
+import app.suply.echoair.update.UpdateAvailableGate
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -67,6 +68,11 @@ class MainActivity : ComponentActivity() {
                     if (firstLaunchNeeded) {
                         FirstLaunchLanguageGate(onAcknowledged = { firstLaunchNeeded = false })
                     }
+                    // Side-load update prompt — no-op on Play Store builds
+                    // because the published Play release wins the
+                    // versionCode race naturally, and no-op when the
+                    // endpoint is unreachable. Always safe to mount.
+                    UpdateAvailableGate()
                 }
             }
         }

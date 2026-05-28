@@ -156,4 +156,9 @@
     <string name="spike_field_password_label">パスワード</string>
     <string name="spike_run">スパイクを実行</string>
     <string name="spike_log_output">ログ出力</string>
+    <string name="update_dialog_title">アップデートがあります</string>
+    <string name="update_dialog_body">Echo Air %1$s が公開されました。最新の機能と修正のためにダウンロードしてください。</string>
+    <string name="update_dialog_body_with_notes">Echo Air %1$s が公開されました。\n\n%2$s</string>
+    <string name="update_dialog_download">ダウンロード</string>
+    <string name="update_dialog_later">後で</string>
 </resources>
