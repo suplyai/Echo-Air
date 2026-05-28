@@ -13,7 +13,16 @@ local.properties
 *.apk
 *.aab
 *.keystore
+*.jks
 keystore.properties
+# Signing material — production key lives here, never committed.
+# Anything inside signing/ is treated as secret regardless of extension.
+/signing/
+# Defensive: the previous (now rotated/abandoned) production key lived
+# here. Keep the patterns so an accidental restore from history doesn't
+# silently re-commit either file.
+/app/echonew_keystore
+/app/keystore_details.txt
 google-services.json
 .kotlin
 local.properties

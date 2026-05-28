@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -6,6 +8,19 @@ plugins {
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
 }
+
+// Production signing — credentials live in a gitignored keystore.properties
+// at the repo root (see signing/ and docs/BUILDING.md). When the file is
+// absent (fresh clone, CI without secrets, etc.) the release build still
+// configures cleanly but produces an unsigned APK/AAB — Gradle will tell
+// you on the assemble/bundle invocation. Never inline the password here.
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+val hasReleaseSigning = keystorePropertiesFile.exists()
 
 android {
     namespace = "app.suply.echoair"
@@ -37,6 +52,17 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            if (hasReleaseSigning) {
+                storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         debug {
             isMinifyEnabled = false
@@ -50,6 +76,12 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            // Direct-download distribution (China rollout, no Play Store) uses
+            // :app:assembleRelease; Play Store uses :app:bundleRelease. Both
+            // share this single config so a sideloaded user upgrading from
+            // the suply.ai download to a Play Store install (or back) keeps
+            // the same package identity — no uninstall required.
+            signingConfig = if (hasReleaseSigning) signingConfigs.getByName("release") else null
         }
     }
 
